@@ -8,6 +8,7 @@ The data can be found at http://kdd.ics.uci.edu/databases/reuters21578/reuters21
 
 Sections:
 * Imports
+* Functionality
 * Driver
 """
 
@@ -18,6 +19,16 @@ Sections:
 import argparse
 from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_message
 
+#################
+# Functionality #
+#################
+
+def train_model() -> None:
+    from models import EEPClassifier
+    classifier = EEPClassifier()
+    classifier.train()
+    return
+
 ##########
 # Driver #
 ##########
@@ -26,6 +37,8 @@ from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_mess
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('-preprocess-data', action='store_true', help="Preprocess the raw SGML files into a CSV.")
+    parser.add_argument('-train-model', action='store_true', help="Trains & evaluates our model on our dataset. Saves model to ./best-model.pt.")
+    # @todo load model and evaluate texts. Make this an interactive buffer.
     args = parser.parse_args()
     number_of_args_specified = sum(map(int,vars(args).values()))
     if number_of_args_specified == 0:
@@ -35,6 +48,8 @@ def main() -> None:
     elif args.preprocess_data:
         import preprocess_data
         preprocess_data.preprocess_data()
+    elif args.train_model:
+        train_model()
     else:
         raise Exception("Unexpected args received.")
     return

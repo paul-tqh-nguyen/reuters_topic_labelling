@@ -43,8 +43,6 @@ PRE_TRAINED_VECTOR_SPECIFICATION = "glove.6B.100d"
 EMBEDDING_SIZE = 100
 ENCODING_HIDDEN_SIZE = 256
 NUMBER_OF_ENCODING_LAYERS = 2
-ATTENTION_INTERMEDIATE_SIZE = 1 # @todo update this
-NUMBER_OF_ATTENTION_HEADS = 1 # @todo update this
 DROPOUT_PROBABILITY = 0.5
 
 #############
@@ -56,7 +54,6 @@ LABEL = data.LabelField(dtype = torch.long)
 
 with open(preprocess_data.TOPICS_DATA_OUTPUT_CSV_FILE, 'r') as topics_csv_file:
     column_names = eager_map(str.strip, topics_csv_file.readline().split(','))
-    # @todo account for text_title column in prediction as well
     column_name_to_field_map = [(column_name, TEXT if column_name=='text' else
                                  None if column_name in preprocess_data.COLUMNS_RELEVANT_TO_TOPICS_DATA else
                                  LABEL) for column_name in column_names]
@@ -116,62 +113,13 @@ UNK_IDX = TEXT.vocab.stoi[TEXT.unk_token]
 # Models #
 ##########
 
-class AttentionLayers(nn.Module):
-    def __init__(self, encoding_hidden_size, attention_intermediate_size, number_of_attention_heads, dropout_probability):
-        super().__init__()
-        if __debug__:
-            self.encoding_hidden_size = encoding_hidden_size
-            self.number_of_attention_heads = number_of_attention_heads
-        self.attention_layers = nn.Sequential(OrderedDict([
-            ("intermediate_attention_layer", nn.Linear(encoding_hidden_size*2, attention_intermediate_size)),
-            ("intermediate_attention_dropout_layer", nn.Dropout(dropout_probability)),
-            ("attention_activation", nn.ReLU(True)),
-            ("final_attention_layer", nn.Linear(attention_intermediate_size, number_of_attention_heads)),
-            ("final_attention_dropout_layer", nn.Dropout(dropout_probability)),
-            ("softmax_layer", nn.Softmax(dim=0)),
-        ]))
-
-    def forward(self, encoded_batch, text_lengths):
-        max_sentence_length = encoded_batch.shape[1]
-        batch_size = text_lengths.shape[0]
-        assert tuple(encoded_batch.shape) == (batch_size, max_sentence_length, self.encoding_hidden_size*2)
-
-        attended_batch = Variable(torch.empty(batch_size, self.encoding_hidden_size*2*self.number_of_attention_heads).to(encoded_batch.device))
-
-        for batch_index in range(batch_size):
-            sentence_length = text_lengths[batch_index]
-            sentence_matrix = encoded_batch[batch_index, :sentence_length, :]
-            assert encoded_batch[batch_index ,sentence_length:, :].data.sum() == 0
-            assert tuple(sentence_matrix.shape) == (sentence_length, self.encoding_hidden_size*2)
-
-            # Intended Implementation
-            # sentence_weights = self.attention_layers(sentence_matrix)
-            # assert tuple(sentence_weights.shape) == (sentence_length, self.number_of_attention_heads)
-            # assert (sentence_weights.data.sum(dim=0)-1).abs().mean() < 1e-4
-            
-            # Mean Implementation
-            sentence_weights = torch.ones(sentence_length, self.number_of_attention_heads).to(encoded_batch.device) / sentence_length
-            assert tuple(sentence_weights.shape) == (sentence_length, self.number_of_attention_heads)
-
-            weight_adjusted_sentence_matrix = torch.mm(sentence_matrix.t(), sentence_weights)
-            assert tuple(weight_adjusted_sentence_matrix.shape) == (self.encoding_hidden_size*2, self.number_of_attention_heads,)
-
-            concatenated_attention_vectors = weight_adjusted_sentence_matrix.view(-1)
-            assert tuple(concatenated_attention_vectors.shape) == (self.encoding_hidden_size*2*self.number_of_attention_heads,)
-
-            attended_batch[batch_index, :] = concatenated_attention_vectors
-
-        assert tuple(attended_batch.shape) == (batch_size, self.encoding_hidden_size*2*self.number_of_attention_heads)
-        return attended_batch
-
-class EEAPNetwork(nn.Module):
-    def __init__(self, vocab_size, embedding_size, encoding_hidden_size, number_of_encoding_layers, attention_intermediate_size, number_of_attention_heads, output_size, dropout_probability):
+class EEPNetwork(nn.Module):
+    def __init__(self, vocab_size, embedding_size, encoding_hidden_size, number_of_encoding_layers, output_size, dropout_probability):
         super().__init__()
         if __debug__:
             self.embedding_size = embedding_size
             self.encoding_hidden_size = encoding_hidden_size
             self.number_of_encoding_layers = number_of_encoding_layers
-            self.number_of_attention_heads = number_of_attention_heads
         self.embedding_layers = nn.Sequential(OrderedDict([
             ("embedding_layer", nn.Embedding(vocab_size, embedding_size, padding_idx=PAD_IDX, max_norm=1.0)),
             ("dropout_layer", nn.Dropout(dropout_probability)),
@@ -181,9 +129,8 @@ class EEAPNetwork(nn.Module):
                                        num_layers=number_of_encoding_layers,
                                        bidirectional=True,
                                        dropout=dropout_probability)
-        self.attention_layers = AttentionLayers(encoding_hidden_size, attention_intermediate_size, number_of_attention_heads, dropout_probability)
         self.prediction_layers = nn.Sequential(OrderedDict([
-            ("fully_connected_layer", nn.Linear(encoding_hidden_size*2*number_of_attention_heads, output_size)),
+            ("fully_connected_layer", nn.Linear(encoding_hidden_size*2, output_size)),
             ("dropout_layer", nn.Dropout(dropout_probability)),
             ("sigmoid_layer", nn.Sigmoid()),
         ]))
@@ -212,9 +159,15 @@ class EEAPNetwork(nn.Module):
         assert tuple(encoded_batch_lengths.shape) == (batch_size,)
         assert (encoded_batch_lengths.to(DEVICE) == text_lengths).all()
 
-        attended_batch = self.attention_layers(encoded_batch, text_lengths)
-        assert tuple(attended_batch.shape) == (batch_size, self.encoding_hidden_size*2*self.number_of_attention_heads)
-        prediction = self.prediction_layers(attended_batch)
+        mean_batch = Variable(torch.empty(batch_size, self.encoding_hidden_size*2).to(DEVICE))
+        for batch_index in range(batch_size):
+            batch_sequence_length = text_lengths[batch_index]
+            last_word_index = batch_sequence_length-1
+            mean_batch[batch_index, :] = encoded_batch[batch_index,:batch_sequence_length,:].mean(dim=0)
+            assert encoded_batch[batch_index,batch_sequence_length:,:].sum() == 0
+        assert tuple(mean_batch.shape) == (batch_size, self.encoding_hidden_size*2)
+        
+        prediction = self.prediction_layers(mean_batch)
         assert tuple(prediction.shape) == (batch_size, OUTPUT_SIZE)
         
         return prediction
@@ -227,7 +180,6 @@ def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 def discrete_accuracy(y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-    # @todo add dimension checks
     batch_size = y.shape[0]
     y_hat_discretized = torch.round(y_hat)
     number_of_correct_answers = (y_hat_discretized == y).sum(dim=1)
@@ -259,7 +211,7 @@ def validate(model, iterator, loss_function):
     epoch_acc = 0
     model.eval()
     with torch.no_grad():
-        for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'Validation Accuracy {epoch_acc/(index+1)*100:.8f}%', total=len(iterator), bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
+        for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'Validation Accuracy {epoch_acc/(index+1)*100:.8f}%', total=len(iterator), bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'): # @todo make this say "Testing Accuracy" when appropriate
             predictions = model(texts, text_lengths).squeeze(1)
             loss = loss_function(predictions, multiclass_labels) # @todo verify that these dimensions are correct
             acc = discrete_accuracy(predictions, multiclass_labels)
@@ -270,7 +222,7 @@ def validate(model, iterator, loss_function):
 # @todo get rid of this
 @debug_on_error
 def main():
-    model = EEAPNetwork(VOCAB_SIZE, EMBEDDING_SIZE, ENCODING_HIDDEN_SIZE, NUMBER_OF_ENCODING_LAYERS, ATTENTION_INTERMEDIATE_SIZE, NUMBER_OF_ATTENTION_HEADS, OUTPUT_SIZE, DROPOUT_PROBABILITY)
+    model = EEPNetwork(VOCAB_SIZE, EMBEDDING_SIZE, ENCODING_HIDDEN_SIZE, NUMBER_OF_ENCODING_LAYERS, OUTPUT_SIZE, DROPOUT_PROBABILITY)
     print(f'The model has {count_parameters(model):,} trainable parameters')
     model.embedding_layers.embedding_layer.weight.data.copy_(TEXT.vocab.vectors)
     model.embedding_layers.embedding_layer.weight.data[UNK_IDX] = torch.zeros(EMBEDDING_SIZE)
