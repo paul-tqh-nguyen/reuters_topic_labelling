@@ -12,13 +12,13 @@
 ###########
 
 import random
-from typing import List, Tuple
+from typing import List, Tuple, Set
 from collections import OrderedDict
 
 import preprocess_data
-from misc_utilites import eager_map, timer, tqdm_with_message
-from misc_utilites import debug_on_error, dpn # @todo remove this
+from misc_utilites import eager_map, timer, tqdm_with_message, debug_on_error # @todo get rid of debug_on_error
 
+import spacy
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -35,16 +35,6 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
-
-###########################
-# Domain Specific Helpers #
-###########################
-
-def dimensionality_from_pre_trained_embedding_specification(pre_trained_embedding_specification: str) -> int:
-    if 'dim' in torchtext.vocab.pretrained_aliases[pre_trained_embedding_specification].keywords:
-        return int(torchtext.vocab.pretrained_aliases[pre_trained_embedding_specification].keywords['dim'])
-    else:
-        return int(pre_trained_embedding_specification.split('.')[-1][:-1])
 
 ##########
 # Models #
@@ -131,12 +121,24 @@ class NumericalizedBatchIterator:
 class EEPClassifier(nn.Module):
     def __init__(self, number_of_epochs: int, batch_size: int, train_portion: float, validation_portion: float, testing_portion: float, max_vocab_size: int, pre_trained_embedding_specification: str, encoding_hidden_size: int, number_of_encoding_layers: int, dropout_probability: float):
         super().__init__()
-        self.load_data(batch_size, train_portion, validation_portion, testing_portion, max_vocab_size, pre_trained_embedding_specification)
-        self.initialize_model(pre_trained_embedding_specification, encoding_hidden_size, number_of_encoding_layers, dropout_probability)
         self.best_valid_loss = float('inf')
-        self.number_of_epochs = number_of_epochs
 
-    def load_data(self, batch_size: int, train_portion: float, validation_portion: float, testing_portion: float, max_vocab_size: int, pre_trained_embedding_specification: str):
+        self.number_of_epochs = number_of_epochs
+        self.batch_size = batch_size
+        self.max_vocab_size = max_vocab_size
+        self.pre_trained_embedding_specification = pre_trained_embedding_specification
+        self.encoding_hidden_size = encoding_hidden_size
+        self.number_of_encoding_layers = number_of_encoding_layers
+        self.dropout_probability = dropout_probability
+        self.train_portion = train_portion
+        self.validation_portion = validation_portion
+        self.testing_portion = testing_portion
+        
+        self.load_data()
+        self.initialize_model()
+        self.nlp = spacy.load('en')
+
+    def load_data(self):
         self.text_field = data.Field(tokenize = 'spacy', include_lengths = True, batch_first = True)
         self.label_field = data.LabelField(dtype = torch.long)
         with open(preprocess_data.TOPICS_DATA_OUTPUT_CSV_FILE, 'r') as topics_csv_file:
@@ -151,14 +153,14 @@ class EEPClassifier(nn.Module):
             format='csv',
             skip_header=True,
             fields=column_name_to_field_map)
-        training_data, validation_data, testing_data = all_data.split(split_ratio=[train_portion, validation_portion, testing_portion], random_state = random.seed(SEED))
-        self.text_field.build_vocab(training_data, max_size = max_vocab_size, vectors = pre_trained_embedding_specification, unk_init = torch.Tensor.normal_)
+        training_data, validation_data, testing_data = all_data.split(split_ratio=[self.train_portion, self.validation_portion, self.testing_portion], random_state = random.seed(SEED))
+        self.text_field.build_vocab(training_data, max_size = self.max_vocab_size, vectors = self.pre_trained_embedding_specification, unk_init = torch.Tensor.normal_)
         self.label_field.build_vocab(training_data)
-        assert self.text_field.vocab.vectors.shape[0] <= max_vocab_size+2
-        assert self.text_field.vocab.vectors.shape[1] == dimensionality_from_pre_trained_embedding_specification(pre_trained_embedding_specification)
+        assert self.text_field.vocab.vectors.shape[0] <= self.max_vocab_size+2
+        assert self.text_field.vocab.vectors.shape[1] == self.dimensionality_from_pre_trained_embedding_specification()
         self.training_iterator, self.validation_iterator, self.testing_iterator = data.BucketIterator.splits(
             (training_data, validation_data, testing_data),
-            batch_size = batch_size,
+            batch_size = self.batch_size,
             sort_key=lambda x: len(x.text),
             sort_within_batch = True,
             repeat=False,
@@ -169,10 +171,10 @@ class EEPClassifier(nn.Module):
         self.pad_idx = self.text_field.vocab.stoi[self.text_field.pad_token]
         self.unk_idx = self.text_field.vocab.stoi[self.text_field.unk_token]
 
-    def initialize_model(self, pre_trained_embedding_specification: str, encoding_hidden_size: int, number_of_encoding_layers: int, dropout_probability: int) -> None:
+    def initialize_model(self) -> None:
         vocab_size = len(self.text_field.vocab)
-        embedding_size = dimensionality_from_pre_trained_embedding_specification(pre_trained_embedding_specification)
-        self.model = EEPNetwork(vocab_size, embedding_size, encoding_hidden_size, number_of_encoding_layers, self.output_size, dropout_probability, self.pad_idx)
+        embedding_size = self.dimensionality_from_pre_trained_embedding_specification()
+        self.model = EEPNetwork(vocab_size, embedding_size, self.encoding_hidden_size, self.number_of_encoding_layers, self.output_size, self.dropout_probability, self.pad_idx)
         self.model.embedding_layers.embedding_layer.weight.data.copy_(self.text_field.vocab.vectors)
         self.model.embedding_layers.embedding_layer.weight.data[self.unk_idx] = torch.zeros(embedding_size)
         self.model.embedding_layers.embedding_layer.weight.data[self.pad_idx] = torch.zeros(embedding_size)
@@ -181,6 +183,12 @@ class EEPClassifier(nn.Module):
         self.loss_function = nn.BCELoss()
         self.loss_function = self.loss_function.to(DEVICE)
         return
+    
+    def dimensionality_from_pre_trained_embedding_specification(self) -> int:
+        if 'dim' in torchtext.vocab.pretrained_aliases[self.pre_trained_embedding_specification].keywords:
+            return int(torchtext.vocab.pretrained_aliases[self.pre_trained_embedding_specification].keywords['dim'])
+        else:
+            return int(self.pre_trained_embedding_specification.split('.')[-1][:-1])
 
     def train_one_epoch(self) -> Tuple[float, float]:
         epoch_loss = 0
@@ -190,8 +198,8 @@ class EEPClassifier(nn.Module):
         for (texts, text_lengths), multiclass_labels in tqdm_with_message(self.training_iterator, post_yield_message_func = lambda index: f'Training Accuracy {epoch_acc/(index+1)*100:.8f}%', total=number_of_training_batches, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
             self.optimizer.zero_grad()
             predictions = self.model(texts, text_lengths)
-            loss = self.loss_function(predictions, multiclass_labels) # @todo verify that these dimensions are correct
-            acc = self.discrete_accuracy(predictions, multiclass_labels)
+            loss = self.loss_function(predictions, multiclass_labels)
+            acc = self.potion_of_target_topics_correctly_guessed(predictions, multiclass_labels)
             loss.backward()
             self.optimizer.step()
             epoch_loss += loss.item()
@@ -205,8 +213,8 @@ class EEPClassifier(nn.Module):
         with torch.no_grad():
             for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'{"Testing" if iterator_is_test_set else "Validation"} Accuracy {epoch_acc/(index+1)*100:.8f}%', total=len(iterator), bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
                 predictions = self.model(texts, text_lengths).squeeze(1)
-                loss = self.loss_function(predictions, multiclass_labels) # @todo verify that these dimensions are correct
-                acc = self.discrete_accuracy(predictions, multiclass_labels)
+                loss = self.loss_function(predictions, multiclass_labels)
+                acc = self.potion_of_target_topics_correctly_guessed(predictions, multiclass_labels)
                 epoch_loss += loss.item()
                 epoch_acc += acc.item()
         return epoch_loss / len(iterator), epoch_acc / len(iterator)
@@ -214,54 +222,80 @@ class EEPClassifier(nn.Module):
     def validate(self) -> Tuple[float, float]:
         return self.evaluate(self.validation_iterator, False)
 
-    def test(self) -> Tuple[float, float]:
-        return self.evaluate(self.testing_iterator, True)
+    def test(self) -> None:
+        test_loss, test_acc = self.evaluate(self.testing_iterator, True)
+        print(f'Test Loss: {test_loss:.3f} | Test Acc: {test_acc*100:.2f}%')
+        return
     
-    @debug_on_error # @todo remove this debugging decorator
     def train(self) -> None:
-        print(f'The model has {self.count_parameters()}, trainable parameters')
+        self.print_hyperparameters()
         print(f'Starting training')
         for epoch_index in range(self.number_of_epochs):
+            print("\n\n\n")
+            print(f"Epoch {epoch_index}")
             with timer(section_name=f"Epoch {epoch_index}"):
                 train_loss, train_acc = self.train_one_epoch()
                 valid_loss, valid_acc = self.validate()
                 if valid_loss < self.best_valid_loss:
                     self.best_valid_loss = valid_loss
-                    torch.save(self.model.state_dict(), 'best-model.pt')
+                    self.save_parameters('best-model.pt')
                 print(f'\tTrain Loss: {train_loss:.8f} | Train Acc: {train_acc*100:.8f}%')
                 print(f'\t Val. Loss: {valid_loss:.8f} |  Val. Acc: {valid_acc*100:.8f}%')
-        self.model.load_state_dict(torch.load('best-model.pt'))
-        test_loss, test_acc = self.test()
-        print(f'Test Loss: {test_loss:.3f} | Test Acc: {test_acc*100:.2f}%')
+        self.load_parameters('best-model.pt')
+        self.test()
         return
-        
+
+    def print_hyperparameters(self) -> None:
+        print() # @todo finish this ; make sure every hyperparameter that is tracked is used via an accessor instead of passed around.
+        print(f"Model hyperparameters are:")
+        print(f'        number_of_epochs: {self.number_of_epochs}')
+        print(f'        batch_size: {self.batch_size}')
+        print(f'        max_vocab_size: {self.max_vocab_size}')
+        print(f'        pre_trained_embedding_specification: {self.pre_trained_embedding_specification}')
+        print(f'        encoding_hidden_size: {self.encoding_hidden_size}')
+        print(f'        number_of_encoding_layers: {self.number_of_encoding_layers}')
+        print(f'        output_size: {self.output_size}')
+        print(f'        dropout_probability: {self.dropout_probability}')
+        print()
+        print(f'The model has {self.count_parameters()} trainable parameters')
+        print()
+    
     def count_parameters(self) -> int:
         return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
-    def discrete_accuracy(self, y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def potion_of_target_topics_correctly_guessed(self, y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        """NB: Doesn't account for incorrectness stemming from false positives.""" # @todo is this just recall? If so, rename it.
         batch_size = y.shape[0]
         y_hat_discretized = torch.round(y_hat)
-        number_of_correct_answers = (y_hat_discretized == y).sum(dim=1)
-        accuracy = number_of_correct_answers.float() / len(self.topics)
+        number_of_target_topics_correctly_guessed = ((y_hat_discretized == y) & y.bool()).float().sum(dim=1)
+        accuracy = number_of_target_topics_correctly_guessed / y.sum(dim=1)
         mean_accuracy = torch.mean(accuracy)
         return mean_accuracy
+
+    def save_parameters(self, parameter_file_location: str) -> None:
+        torch.save(self.model.state_dict(), parameter_file_location)
+        return
     
+    def load_parameters(self, parameter_file_location: str) -> None:
+        self.model.load_state_dict(torch.load(parameter_file_location))
+        return
+    
+    @debug_on_error
+    def classify_string(self, input_string: str) -> Set[str]:
+        self.model.eval()
+        tokenized = [token.text for token in self.nlp.tokenizer(input_string)]
+        indexed = [self.text_field.vocab.stoi[t] for t in tokenized]
+        lengths = [len(indexed)]
+        tensor = torch.LongTensor(indexed).to(DEVICE)
+        tensor = tensor.view(1,-1)
+        length_tensor = torch.LongTensor(lengths).to(DEVICE)
+        prediction_as_index = self.model(tensor, length_tensor).argmax(dim=1).item() # @todo Is this correct? 
+        prediction = self.label_field.vocab.itos[prediction_as_index]
+        return prediction
+
 ###############
 # Main Driver #
 ###############
 
 if __name__ == '__main__':
     print() # @todo fill this in
-    # @todo get rid of this
-    number_of_epochs = 1
-    batch_size = 32
-    max_vocab_size = 25_000
-    train_portion, validation_portion, testing_portion = (0.50, 0.20, 0.3)
-    
-    pre_trained_embedding_specification = "glove.6B.100d"
-    encoding_hidden_size = 256
-    number_of_encoding_layers = 2
-    dropout_probability = 0.5
-
-    classifier = EEPClassifier(number_of_epochs, batch_size, train_portion, validation_portion, testing_portion, max_vocab_size, pre_trained_embedding_specification, encoding_hidden_size, number_of_encoding_layers, dropout_probability)
-    classifier.train()
