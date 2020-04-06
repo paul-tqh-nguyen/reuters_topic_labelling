@@ -45,6 +45,18 @@ ENCODING_HIDDEN_SIZE = 256
 NUMBER_OF_ENCODING_LAYERS = 2
 DROPOUT_PROBABILITY = 0.5
 
+###########################
+# Domain Specific Helpers #
+###########################
+
+def discrete_accuracy(y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    batch_size = y.shape[0]
+    y_hat_discretized = torch.round(y_hat)
+    number_of_correct_answers = (y_hat_discretized == y).sum(dim=1)
+    accuracy = number_of_correct_answers.float() / len(TOPICS)
+    mean_accuracy = torch.mean(accuracy)
+    return mean_accuracy
+
 #############
 # Load Data #
 #############
@@ -172,82 +184,87 @@ class EEPNetwork(nn.Module):
         
         return prediction
 
-###########################
-# Domain Specific Helpers #
-###########################
+###############
+# Classifiers #
+###############
 
-def count_parameters(model):
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+class EEPClassifier(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.initialize_model()
+        self.best_valid_loss = float('inf')
+        
+    def initialize_model(self): 
+        self.model = EEPNetwork(VOCAB_SIZE, EMBEDDING_SIZE, ENCODING_HIDDEN_SIZE, NUMBER_OF_ENCODING_LAYERS, OUTPUT_SIZE, DROPOUT_PROBABILITY)
+        model = EEPNetwork(VOCAB_SIZE, EMBEDDING_SIZE, ENCODING_HIDDEN_SIZE, NUMBER_OF_ENCODING_LAYERS, OUTPUT_SIZE, DROPOUT_PROBABILITY)
+        model.embedding_layers.embedding_layer.weight.data.copy_(TEXT.vocab.vectors)
+        model.embedding_layers.embedding_layer.weight.data[UNK_IDX] = torch.zeros(EMBEDDING_SIZE)
+        model.embedding_layers.embedding_layer.weight.data[PAD_IDX] = torch.zeros(EMBEDDING_SIZE)
+        self.model = self.model.to(DEVICE)
+        self.optimizer = optim.Adam(self.model.parameters())
+        self.loss_function = nn.BCELoss()
+        self.loss_function = self.loss_function.to(DEVICE)
 
-def discrete_accuracy(y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-    batch_size = y.shape[0]
-    y_hat_discretized = torch.round(y_hat)
-    number_of_correct_answers = (y_hat_discretized == y).sum(dim=1)
-    accuracy = number_of_correct_answers.float() / len(TOPICS)
-    mean_accuracy = torch.mean(accuracy)
-    return mean_accuracy
+    def train_one_epoch(self, iterator):
+        epoch_loss = 0
+        epoch_acc = 0
+        self.model.train()
+        for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'Training Accuracy {epoch_acc/(index+1)*100:.8f}%', total=len(iterator), bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
+            self.optimizer.zero_grad()
+            predictions = self.model(texts, text_lengths)
+            loss = self.loss_function(predictions, multiclass_labels) # @todo verify that these dimensions are correct
+            acc = discrete_accuracy(predictions, multiclass_labels)
+            loss.backward()
+            self.optimizer.step()
+            epoch_loss += loss.item()
+            epoch_acc += acc.item()
+        return epoch_loss / len(iterator), epoch_acc / len(iterator)
+
+    def evaluate(self, iterator, iterator_is_test_set):
+        epoch_loss = 0
+        epoch_acc = 0
+        self.model.eval()
+        with torch.no_grad():
+            for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'{"Testing" if iterator_is_test_set else "Validation"} Accuracy {epoch_acc/(index+1)*100:.8f}%', total=len(iterator), bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
+                predictions = self.model(texts, text_lengths).squeeze(1)
+                loss = self.loss_function(predictions, multiclass_labels) # @todo verify that these dimensions are correct
+                acc = discrete_accuracy(predictions, multiclass_labels)
+                epoch_loss += loss.item()
+                epoch_acc += acc.item()
+        return epoch_loss / len(iterator), epoch_acc / len(iterator)
+
+    def validate(self):
+        return self.evaluate(validation_iterator, False)
+
+    def test(self):
+        return self.evaluate(testing_iterator, True)
+    
+    @debug_on_error # @todo remove this debugging decorator
+    def train(self):
+        print(f'The model has {self.count_parameters()}, trainable parameters')
+        print(f'Starting training')
+        for epoch_index in range(NUMBER_OF_EPOCHS):
+            with timer(section_name=f"Epoch {epoch_index}"):
+                train_loss, train_acc = self.train_one_epoch(training_iterator)
+                valid_loss, valid_acc = self.validate()
+                if valid_loss < self.best_valid_loss:
+                    self.best_valid_loss = valid_loss
+                    torch.save(model.state_dict(), 'best-model.pt')
+                print(f'\tTrain Loss: {train_loss:.8f} | Train Acc: {train_acc*100:.8f}%')
+                print(f'\t Val. Loss: {valid_loss:.8f} |  Val. Acc: {valid_acc*100:.8f}%')
+        self.model.load_state_dict(torch.load('best-model.pt'))
+        test_loss, test_acc = self.test()
+        print(f'Test Loss: {test_loss:.3f} | Test Acc: {test_acc*100:.2f}%')
+        
+    def count_parameters(self) -> int:
+        return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
 ###############
 # Main Driver #
 ###############
 
-def train(model, iterator, optimizer, loss_function):
-    epoch_loss = 0
-    epoch_acc = 0
-    model.train()
-    for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'Training Accuracy {epoch_acc/(index+1)*100:.8f}%', total=len(iterator), bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
-        optimizer.zero_grad()
-        predictions = model(texts, text_lengths)
-        loss = loss_function(predictions, multiclass_labels) # @todo verify that these dimensions are correct
-        acc = discrete_accuracy(predictions, multiclass_labels)
-        loss.backward()
-        optimizer.step()
-        epoch_loss += loss.item()
-        epoch_acc += acc.item()
-    return epoch_loss / len(iterator), epoch_acc / len(iterator)
-
-def validate(model, iterator, loss_function):
-    epoch_loss = 0
-    epoch_acc = 0
-    model.eval()
-    with torch.no_grad():
-        for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'Validation Accuracy {epoch_acc/(index+1)*100:.8f}%', total=len(iterator), bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'): # @todo make this say "Testing Accuracy" when appropriate
-            predictions = model(texts, text_lengths).squeeze(1)
-            loss = loss_function(predictions, multiclass_labels) # @todo verify that these dimensions are correct
-            acc = discrete_accuracy(predictions, multiclass_labels)
-            epoch_loss += loss.item()
-            epoch_acc += acc.item()
-    return epoch_loss / len(iterator), epoch_acc / len(iterator)
-
-# @todo get rid of this
-@debug_on_error
-def main():
-    model = EEPNetwork(VOCAB_SIZE, EMBEDDING_SIZE, ENCODING_HIDDEN_SIZE, NUMBER_OF_ENCODING_LAYERS, OUTPUT_SIZE, DROPOUT_PROBABILITY)
-    print(f'The model has {count_parameters(model):,} trainable parameters')
-    model.embedding_layers.embedding_layer.weight.data.copy_(TEXT.vocab.vectors)
-    model.embedding_layers.embedding_layer.weight.data[UNK_IDX] = torch.zeros(EMBEDDING_SIZE)
-    model.embedding_layers.embedding_layer.weight.data[PAD_IDX] = torch.zeros(EMBEDDING_SIZE)
-
-    optimizer = optim.Adam(model.parameters())
-    loss_function = nn.BCELoss()
-    model = model.to(DEVICE)
-    loss_function = loss_function.to(DEVICE)
-    best_valid_loss = float('inf')
-
-    print(f'Starting training')
-    for epoch_index in range(NUMBER_OF_EPOCHS):
-        with timer(section_name=f"Epoch {epoch_index}"):
-            train_loss, train_acc = train(model, training_iterator, optimizer, loss_function)
-            valid_loss, valid_acc = validate(model, validation_iterator, loss_function)
-            if valid_loss < best_valid_loss:
-                best_valid_loss = valid_loss
-                torch.save(model.state_dict(), 'best-model.pt')
-            print(f'\tTrain Loss: {train_loss:.8f} | Train Acc: {train_acc*100:.8f}%')
-            print(f'\t Val. Loss: {valid_loss:.8f} |  Val. Acc: {valid_acc*100:.8f}%')
-    model.load_state_dict(torch.load('best-model.pt'))
-    test_loss, test_acc = validate(model, testing_iterator, loss_function)
-    print(f'Test Loss: {test_loss:.3f} | Test Acc: {test_acc*100:.2f}%')
-
 if __name__ == '__main__':
     print() # @todo fill this in
-    main()
+    # @todo get rid of this
+    classifier = EEPClassifier()
+    classifier.train()
