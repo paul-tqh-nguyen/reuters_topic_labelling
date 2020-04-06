@@ -35,15 +35,11 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 
-NUMBER_OF_EPOCHS = 1
-MAX_VOCAB_SIZE = 25_000
 BATCH_SIZE = 32
+MAX_VOCAB_SIZE = 25_000
 
 PRE_TRAINED_VECTOR_SPECIFICATION = "glove.6B.100d"
 EMBEDDING_SIZE = 100
-ENCODING_HIDDEN_SIZE = 256
-NUMBER_OF_ENCODING_LAYERS = 2
-DROPOUT_PROBABILITY = 0.5
 
 ###########################
 # Domain Specific Helpers #
@@ -87,7 +83,7 @@ TEXT.build_vocab(training_data, max_size = MAX_VOCAB_SIZE, vectors = PRE_TRAINED
 LABEL.build_vocab(training_data)
 
 assert TEXT.vocab.vectors.shape[0] <= MAX_VOCAB_SIZE+2
-assert TEXT.vocab.vectors.shape[1] == EMBEDDING_SIZE
+#assert TEXT.vocab.vectors.shape[1] == EMBEDDING_SIZE
 
 VOCAB_SIZE = len(TEXT.vocab)
 
@@ -189,14 +185,15 @@ class EEPNetwork(nn.Module):
 ###############
 
 class EEPClassifier(nn.Module):
-    def __init__(self):
+    def __init__(self, number_of_epochs: int, encoding_hidden_size: int, number_of_encoding_layers: int, dropout_probability: float):
         super().__init__()
-        self.initialize_model()
+        self.initialize_model(encoding_hidden_size, number_of_encoding_layers, dropout_probability)
         self.best_valid_loss = float('inf')
+        self.number_of_epochs = number_of_epochs
         
-    def initialize_model(self): 
-        self.model = EEPNetwork(VOCAB_SIZE, EMBEDDING_SIZE, ENCODING_HIDDEN_SIZE, NUMBER_OF_ENCODING_LAYERS, OUTPUT_SIZE, DROPOUT_PROBABILITY)
-        model = EEPNetwork(VOCAB_SIZE, EMBEDDING_SIZE, ENCODING_HIDDEN_SIZE, NUMBER_OF_ENCODING_LAYERS, OUTPUT_SIZE, DROPOUT_PROBABILITY)
+    def initialize_model(self, encoding_hidden_size: int, number_of_encoding_layers: int, dropout_probability: int): 
+        self.model = EEPNetwork(VOCAB_SIZE, EMBEDDING_SIZE, encoding_hidden_size, number_of_encoding_layers, OUTPUT_SIZE, dropout_probability)
+        model = EEPNetwork(VOCAB_SIZE, EMBEDDING_SIZE, encoding_hidden_size, number_of_encoding_layers, OUTPUT_SIZE, dropout_probability)
         model.embedding_layers.embedding_layer.weight.data.copy_(TEXT.vocab.vectors)
         model.embedding_layers.embedding_layer.weight.data[UNK_IDX] = torch.zeros(EMBEDDING_SIZE)
         model.embedding_layers.embedding_layer.weight.data[PAD_IDX] = torch.zeros(EMBEDDING_SIZE)
@@ -243,13 +240,13 @@ class EEPClassifier(nn.Module):
     def train(self):
         print(f'The model has {self.count_parameters()}, trainable parameters')
         print(f'Starting training')
-        for epoch_index in range(NUMBER_OF_EPOCHS):
+        for epoch_index in range(self.number_of_epochs):
             with timer(section_name=f"Epoch {epoch_index}"):
                 train_loss, train_acc = self.train_one_epoch(training_iterator)
                 valid_loss, valid_acc = self.validate()
                 if valid_loss < self.best_valid_loss:
                     self.best_valid_loss = valid_loss
-                    torch.save(model.state_dict(), 'best-model.pt')
+                    torch.save(self.model.state_dict(), 'best-model.pt')
                 print(f'\tTrain Loss: {train_loss:.8f} | Train Acc: {train_acc*100:.8f}%')
                 print(f'\t Val. Loss: {valid_loss:.8f} |  Val. Acc: {valid_acc*100:.8f}%')
         self.model.load_state_dict(torch.load('best-model.pt'))
@@ -266,5 +263,11 @@ class EEPClassifier(nn.Module):
 if __name__ == '__main__':
     print() # @todo fill this in
     # @todo get rid of this
-    classifier = EEPClassifier()
+    number_of_epochs = 1
+
+    encoding_hidden_size = 256
+    number_of_encoding_layers = 2
+    dropout_probability = 0.5
+
+    classifier = EEPClassifier(number_of_epochs, encoding_hidden_size, number_of_encoding_layers, dropout_probability)
     classifier.train()
