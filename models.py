@@ -16,7 +16,7 @@ from typing import List, Tuple, Set
 from collections import OrderedDict
 
 import preprocess_data
-from misc_utilites import eager_map, timer, tqdm_with_message, debug_on_error # @todo get rid of debug_on_error
+from misc_utilites import eager_map, timer, tqdm_with_message, debug_on_error, dpn, dpf # @todo get rid of debug_on_error
 
 import spacy
 import torch
@@ -192,39 +192,39 @@ class EEPClassifier(nn.Module):
 
     def train_one_epoch(self) -> Tuple[float, float]:
         epoch_loss = 0
-        epoch_acc = 0
+        epoch_f1 = 0
         number_of_training_batches = len(self.training_iterator)
         self.model.train()
-        for (texts, text_lengths), multiclass_labels in tqdm_with_message(self.training_iterator, post_yield_message_func = lambda index: f'Training Accuracy {epoch_acc/(index+1)*100:.8f}%', total=number_of_training_batches, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
+        for (texts, text_lengths), multiclass_labels in tqdm_with_message(self.training_iterator, post_yield_message_func = lambda index: f'Training F1 {epoch_f1/(index+1):.8f}%', total=number_of_training_batches, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
             self.optimizer.zero_grad()
             predictions = self.model(texts, text_lengths)
             loss = self.loss_function(predictions, multiclass_labels)
-            acc = self.potion_of_target_topics_correctly_guessed(predictions, multiclass_labels)
+            f1 = self.f1_score_of_discretized_values(predictions, multiclass_labels)
             loss.backward()
             self.optimizer.step()
             epoch_loss += loss.item()
-            epoch_acc += acc.item()
-        return epoch_loss / number_of_training_batches, epoch_acc / number_of_training_batches
+            epoch_f1 += f1
+        return epoch_loss / number_of_training_batches, epoch_f1 / number_of_training_batches
 
     def evaluate(self, iterator, iterator_is_test_set) -> Tuple[float, float]:
         epoch_loss = 0
-        epoch_acc = 0
+        epoch_f1 = 0
         self.model.eval()
         with torch.no_grad():
-            for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'{"Testing" if iterator_is_test_set else "Validation"} Accuracy {epoch_acc/(index+1)*100:.8f}%', total=len(iterator), bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
+            for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'{"Testing" if iterator_is_test_set else "Validation"} F1 {epoch_f1/(index+1):.8f}%', total=len(iterator), bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
                 predictions = self.model(texts, text_lengths).squeeze(1)
                 loss = self.loss_function(predictions, multiclass_labels)
-                acc = self.potion_of_target_topics_correctly_guessed(predictions, multiclass_labels)
+                f1 = self.f1_score_of_discretized_values(predictions, multiclass_labels)
                 epoch_loss += loss.item()
-                epoch_acc += acc.item()
-        return epoch_loss / len(iterator), epoch_acc / len(iterator)
+                epoch_f1 += f1
+        return epoch_loss / len(iterator), epoch_f1 / len(iterator)
 
     def validate(self) -> Tuple[float, float]:
         return self.evaluate(self.validation_iterator, False)
 
     def test(self) -> None:
-        test_loss, test_acc = self.evaluate(self.testing_iterator, True)
-        print(f'Test Loss: {test_loss:.3f} | Test Acc: {test_acc*100:.2f}%')
+        test_loss, test_f1 = self.evaluate(self.testing_iterator, True)
+        print(f'Test Loss: {test_loss:.8f} | Test F1: {test_f1:.8f}%')
         return
     
     def train(self) -> None:
@@ -234,23 +234,24 @@ class EEPClassifier(nn.Module):
             print("\n\n\n")
             print(f"Epoch {epoch_index}")
             with timer(section_name=f"Epoch {epoch_index}"):
-                train_loss, train_acc = self.train_one_epoch()
-                valid_loss, valid_acc = self.validate()
+                train_loss, train_f1 = self.train_one_epoch()
+                valid_loss, valid_f1 = self.validate()
                 if valid_loss < self.best_valid_loss:
                     self.best_valid_loss = valid_loss
                     self.save_parameters('best-model.pt')
-                print(f'\tTrain Loss: {train_loss:.8f} | Train Acc: {train_acc*100:.8f}%')
-                print(f'\t Val. Loss: {valid_loss:.8f} |  Val. Acc: {valid_acc*100:.8f}%')
+                print(f'\tTrain Loss: {train_loss:.8f} | Train F1: {train_f1:.8f}%')
+                print(f'\t Val. Loss: {valid_loss:.8f} |  Val. F1: {valid_f1:.8f}%')
         self.load_parameters('best-model.pt')
         self.test()
         return
 
     def print_hyperparameters(self) -> None:
-        print() # @todo finish this ; make sure every hyperparameter that is tracked is used via an accessor instead of passed around.
+        print()
         print(f"Model hyperparameters are:")
         print(f'        number_of_epochs: {self.number_of_epochs}')
         print(f'        batch_size: {self.batch_size}')
         print(f'        max_vocab_size: {self.max_vocab_size}')
+        print(f'        vocab_size: {len(self.text_field.vocab)}')
         print(f'        pre_trained_embedding_specification: {self.pre_trained_embedding_specification}')
         print(f'        encoding_hidden_size: {self.encoding_hidden_size}')
         print(f'        number_of_encoding_layers: {self.number_of_encoding_layers}')
@@ -263,14 +264,19 @@ class EEPClassifier(nn.Module):
     def count_parameters(self) -> int:
         return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
-    def potion_of_target_topics_correctly_guessed(self, y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        """NB: Doesn't account for incorrectness stemming from false positives.""" # @todo is this just recall? If so, rename it.
+    def f1_score_of_discretized_values(self, y_hat: torch.Tensor, y: torch.Tensor) -> float:
         batch_size = y.shape[0]
+        assert batch_size <= self.batch_size
+        assert tuple(y.shape) == (batch_size, self.output_size)
+        assert tuple(y_hat.shape) == (batch_size, self.output_size)
         y_hat_discretized = torch.round(y_hat)
-        number_of_target_topics_correctly_guessed = ((y_hat_discretized == y) & y.bool()).float().sum(dim=1)
-        accuracy = number_of_target_topics_correctly_guessed / y.sum(dim=1)
-        mean_accuracy = torch.mean(accuracy)
-        return mean_accuracy
+        true_positive_count = ((y_hat_discretized == y) & y.bool()).float().sum(dim=1)
+        false_positive_count = ((y_hat_discretized != y) & y.bool()).float().sum(dim=1)
+        false_negative_count = ((y_hat_discretized != y) & ~y.bool()).float().sum(dim=1)
+        recall = true_positive_count / (true_positive_count + false_positive_count)
+        precision = true_positive_count / (true_positive_count + false_negative_count)
+        mean_f1 = torch.mean(2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+        return mean_f1
 
     def save_parameters(self, parameter_file_location: str) -> None:
         torch.save(self.model.state_dict(), parameter_file_location)
