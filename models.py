@@ -6,6 +6,7 @@
 
 # @todo fill in the top-level doc string
 # @todo add type declarations 
+# @todo verify that all the imported stuff is used
 
 ###########
 # Imports #
@@ -224,9 +225,9 @@ class EEPClassifier(nn.Module):
     def validate(self) -> Tuple[float, float]:
         return self.evaluate(self.validation_iterator, False)
 
-    def test(self) -> None:
+    def test(self, epoch_index) -> None:
         test_loss, test_f1 = self.evaluate(self.testing_iterator, True)
-        print(f'\t Test Loss: {test_loss:.8f} | Test F1: {test_f1:.8f}')
+        print(f'\t  Test F1: {test_f1:.8f} |  Test Loss: {test_loss:.8f}')
         if not os.path.isfile('global_best_model_score.json'):
             log_current_model_as_best = True
         else:
@@ -239,6 +240,7 @@ class EEPClassifier(nn.Module):
             new_global_best_model_score_dict = {
                 'best_valid_loss': self.best_valid_loss,
                 'number_of_epochs': self.number_of_epochs,
+                'most_recently_completed_epoch_index': epoch_index,
                 'batch_size': self.batch_size,
                 'max_vocab_size': self.max_vocab_size,
                 'vocab_size': len(self.text_field.vocab), 
@@ -267,14 +269,14 @@ class EEPClassifier(nn.Module):
             with timer(section_name=f"Epoch {epoch_index}"):
                 train_loss, train_f1 = self.train_one_epoch()
                 valid_loss, valid_f1 = self.validate()
-                print(f'\tTrain Loss: {train_loss:.8f} | Train F1: {train_f1:.8f}')
-                print(f'\t Val. Loss: {valid_loss:.8f} |  Val. F1: {valid_f1:.8f}')
+                print(f'\t Train F1: {train_f1:.8f} | Train Loss: {train_loss:.8f}')
+                print(f'\t  Val. F1: {valid_f1:.8f} |  Val. Loss: {valid_loss:.8f}')
                 if valid_loss < self.best_valid_loss:
                     self.best_valid_loss = valid_loss
                     self.save_parameters('best-model.pt')
-                    self.test()
+                    self.test(epoch_index)
         self.load_parameters('best-model.pt')
-        self.test()
+        self.test(epoch_index)
         return
 
     def print_hyperparameters(self) -> None:
@@ -321,7 +323,7 @@ class EEPClassifier(nn.Module):
         self.model.load_state_dict(torch.load(parameter_file_location))
         return
     
-    @debug_on_error
+    @debug_on_error # @todo get rid of this debug_on_error
     def classify_string(self, input_string: str) -> Set[str]:
         self.model.eval()
         tokenized = [token.text for token in self.nlp.tokenizer(input_string)]

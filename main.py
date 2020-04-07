@@ -17,6 +17,8 @@ Sections:
 ###########
 
 import argparse
+import random
+import itertools
 from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_message
 
 #################
@@ -24,7 +26,7 @@ from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_mess
 #################
 
 NUMBER_OF_EPOCHS = 300
-BATCH_SIZE = 32
+BATCH_SIZE = 1
 MAX_VOCAB_SIZE = 50_000
 TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION = (0.50, 0.20, 0.3)
 
@@ -39,15 +41,49 @@ def train_model() -> None:
     classifier.train()
     return
 
+def hyperparameter_search() -> None:
+    from models import EEPClassifier
+    
+    number_of_epochs = 40
+    batch_size = 1
+    train_portion, validation_portion, testing_portion = (0.50, 0.20, 0.3)
+    
+    max_vocab_size_choices = [25_000] # [10_000, 25_000, 50_000]
+    pre_trained_embedding_specification_choices = ["glove.6B.100d"] # ['charngram.100d', 'fasttext.en.300d', 'fasttext.simple.300d', 'glove.42B.300d', 'glove.840B.300d', 'glove.twitter.27B.25d', 'glove.twitter.27B.50d', 'glove.twitter.27B.100d', 'glove.twitter.27B.200d', 'glove.6B.50d', 'glove.6B.100d', 'glove.6B.200d', 'glove.6B.300d']
+    encoding_hidden_size_choices = [128, 256, 512]
+    number_of_encoding_layers_choices = [1, 2]
+    dropout_probability_choices = [0.0, 0.25, 0.5]
+
+    hyparameter_list_choices = list(itertools.product(max_vocab_size_choices,
+                                                      pre_trained_embedding_specification_choices,
+                                                      encoding_hidden_size_choices,
+                                                      number_of_encoding_layers_choices,
+                                                      dropout_probability_choices))
+    random.shuffle(hyparameter_list_choices)
+    for (max_vocab_size, pre_trained_embedding_specification, encoding_hidden_size, number_of_encoding_layers, dropout_probability) in hyparameter_list_choices:
+        classifier = EEPClassifier(number_of_epochs,
+                                   batch_size,
+                                   train_portion,
+                                   validation_portion,
+                                   testing_portion,
+                                   max_vocab_size,
+                                   pre_trained_embedding_specification,
+                                   encoding_hidden_size,
+                                   number_of_encoding_layers,
+                                   dropout_probability)
+        classifier.train()
+    return
+
 ##########
 # Driver #
 ##########
 
 @debug_on_error
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class = lambda prog: argparse.HelpFormatter(prog, max_help_position = 30))
     parser.add_argument('-preprocess-data', action='store_true', help="Preprocess the raw SGML files into a CSV.")
     parser.add_argument('-train-model', action='store_true', help="Trains & evaluates our model on our dataset. Saves model to ./best-model.pt.")
+    parser.add_argument('-hyperparameter-search', action='store_true', help="Exhaustively performs -train-model over the hyperparameter space. Details of the best performance are tracked in global_best_model_score.json.")
     args = parser.parse_args()
     number_of_args_specified = sum(map(int,vars(args).values()))
     if number_of_args_specified == 0:
@@ -59,6 +95,8 @@ def main() -> None:
         preprocess_data.preprocess_data()
     elif args.train_model:
         train_model()
+    elif args.hyperparameter_search:
+        hyperparameter_search()
     else:
         raise Exception("Unexpected args received.")
     return
