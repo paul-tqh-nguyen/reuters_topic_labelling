@@ -234,8 +234,7 @@ class EEPClassifier(nn.Module):
             with open('global_best_model_score.json', 'r') as current_global_best_model_score_json_file:
                 current_global_best_model_score_dict = json.load(current_global_best_model_score_json_file)
                 current_global_best_model_f1: float = current_global_best_model_score_dict['test_f1']
-                current_global_best_model_loss: float = current_global_best_model_score_dict['test_loss']
-                log_current_model_as_best = current_global_best_model_loss > test_loss
+                log_current_model_as_best = current_global_best_model_f1 < test_f1
         if log_current_model_as_best:
             new_global_best_model_score_dict = {
                 'best_valid_loss': self.best_valid_loss,
