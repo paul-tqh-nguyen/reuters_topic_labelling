@@ -12,6 +12,8 @@
 ###########
 
 import random
+import json
+import os
 from typing import List, Tuple, Set
 from collections import OrderedDict
 
@@ -195,7 +197,7 @@ class EEPClassifier(nn.Module):
         epoch_f1 = 0
         number_of_training_batches = len(self.training_iterator)
         self.model.train()
-        for (texts, text_lengths), multiclass_labels in tqdm_with_message(self.training_iterator, post_yield_message_func = lambda index: f'Training F1 {epoch_f1/(index+1):.8f}%', total=number_of_training_batches, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
+        for (texts, text_lengths), multiclass_labels in tqdm_with_message(self.training_iterator, post_yield_message_func = lambda index: f'Training F1 {epoch_f1/(index+1):.8f}', total=number_of_training_batches, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
             self.optimizer.zero_grad()
             predictions = self.model(texts, text_lengths)
             loss = self.loss_function(predictions, multiclass_labels)
@@ -211,7 +213,7 @@ class EEPClassifier(nn.Module):
         epoch_f1 = 0
         self.model.eval()
         with torch.no_grad():
-            for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'{"Testing" if iterator_is_test_set else "Validation"} F1 {epoch_f1/(index+1):.8f}%', total=len(iterator), bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
+            for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'{"Testing" if iterator_is_test_set else "Validation"} F1 {epoch_f1/(index+1):.8f}', total=len(iterator), bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
                 predictions = self.model(texts, text_lengths).squeeze(1)
                 loss = self.loss_function(predictions, multiclass_labels)
                 f1 = self.f1_score_of_discretized_values(predictions, multiclass_labels)
@@ -224,7 +226,36 @@ class EEPClassifier(nn.Module):
 
     def test(self) -> None:
         test_loss, test_f1 = self.evaluate(self.testing_iterator, True)
-        print(f'Test Loss: {test_loss:.8f} | Test F1: {test_f1:.8f}%')
+        print(f'\t Test Loss: {test_loss:.8f} | Test F1: {test_f1:.8f}')
+        if not os.path.isfile('global_best_model_score.json'):
+            log_current_model_as_best = True
+        else:
+            with open('global_best_model_score.json', 'r') as current_global_best_model_score_json_file:
+                current_global_best_model_score_dict = json.load(current_global_best_model_score_json_file)
+                current_global_best_model_f1: float = current_global_best_model_score_dict['test_f1']
+                current_global_best_model_loss: float = current_global_best_model_score_dict['test_loss']
+                log_current_model_as_best = current_global_best_model_loss > test_loss
+        if log_current_model_as_best:
+            new_global_best_model_score_dict = {
+                'best_valid_loss': self.best_valid_loss,
+                'number_of_epochs': self.number_of_epochs,
+                'batch_size': self.batch_size,
+                'max_vocab_size': self.max_vocab_size,
+                'vocab_size': len(self.text_field.vocab), 
+                'pre_trained_embedding_specification': self.pre_trained_embedding_specification,
+                'encoding_hidden_size': self.encoding_hidden_size,
+                'number_of_encoding_layers': self.number_of_encoding_layers,
+                'dropout_probability': self.dropout_probability,
+                'output_size': self.output_size,
+                'train_portion': self.train_portion,
+                'validation_portion': self.validation_portion,
+                'testing_portion': self.testing_portion,
+                'number_of_parameters': self.count_parameters(),
+                'test_f1': test_f1,
+                'test_loss': test_loss,
+            }
+            with open('global_best_model_score.json', 'w') as outfile:
+                json.dump(new_global_best_model_score_dict, outfile)
         return
     
     def train(self) -> None:
@@ -236,11 +267,12 @@ class EEPClassifier(nn.Module):
             with timer(section_name=f"Epoch {epoch_index}"):
                 train_loss, train_f1 = self.train_one_epoch()
                 valid_loss, valid_f1 = self.validate()
+                print(f'\tTrain Loss: {train_loss:.8f} | Train F1: {train_f1:.8f}')
+                print(f'\t Val. Loss: {valid_loss:.8f} |  Val. F1: {valid_f1:.8f}')
                 if valid_loss < self.best_valid_loss:
                     self.best_valid_loss = valid_loss
                     self.save_parameters('best-model.pt')
-                print(f'\tTrain Loss: {train_loss:.8f} | Train F1: {train_f1:.8f}%')
-                print(f'\t Val. Loss: {valid_loss:.8f} |  Val. F1: {valid_f1:.8f}%')
+                    self.test()
         self.load_parameters('best-model.pt')
         self.test()
         return
@@ -263,7 +295,7 @@ class EEPClassifier(nn.Module):
     
     def count_parameters(self) -> int:
         return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
-
+    
     def f1_score_of_discretized_values(self, y_hat: torch.Tensor, y: torch.Tensor) -> float:
         batch_size = y.shape[0]
         assert batch_size <= self.batch_size
@@ -273,9 +305,12 @@ class EEPClassifier(nn.Module):
         true_positive_count = ((y_hat_discretized == y) & y.bool()).float().sum(dim=1)
         false_positive_count = ((y_hat_discretized != y) & y.bool()).float().sum(dim=1)
         false_negative_count = ((y_hat_discretized != y) & ~y.bool()).float().sum(dim=1)
-        recall = true_positive_count / (true_positive_count + false_positive_count)
-        precision = true_positive_count / (true_positive_count + false_negative_count)
-        mean_f1 = torch.mean(2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+        _make_safe_divisor = lambda divisor: divisor + (~(divisor.bool())).float()
+        recall = true_positive_count / _make_safe_divisor(true_positive_count + false_positive_count)
+        precision = true_positive_count / _make_safe_divisor(true_positive_count + false_negative_count)
+        f1 = 2 * precision * recall / _make_safe_divisor(precision + recall)
+        mean_f1 = torch.mean(f1).item()
+        assert isinstance(mean_f1, float)
         return mean_f1
 
     def save_parameters(self, parameter_file_location: str) -> None:

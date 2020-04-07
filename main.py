@@ -24,7 +24,7 @@ from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_mess
 #################
 
 NUMBER_OF_EPOCHS = 300
-BATCH_SIZE = 1
+BATCH_SIZE = 32
 MAX_VOCAB_SIZE = 50_000
 TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION = (0.50, 0.20, 0.3)
 
