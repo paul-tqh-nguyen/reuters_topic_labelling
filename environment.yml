@@ -1,0 +1,9 @@
+name: reuters
+dependencies:
+  - python=3.7
+  - pytorch
+  - pytorch::torchtext
+  - powerai::sentencepiece
+  - spacy
+  - pandas
+  - tqdm
