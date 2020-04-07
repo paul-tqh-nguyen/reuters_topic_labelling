@@ -18,8 +18,6 @@ Sections:
 
 import os
 import pandas as pd
-import bs4
-from bs4 import BeautifulSoup
 from typing import Iterable, Tuple
 from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_message
 
@@ -43,17 +41,16 @@ def gather_sgm_files() -> Iterable[str]:
     sgm_files = map(lambda sgm_file_name: os.path.join(DATA_DIRECTORY, sgm_file_name), filter(lambda entry: '.' in entry and entry.split('.')[-1]=='sgm', all_data_entries))
     return sgm_files
 
-def get_element_text(element: bs4.element.Tag) -> str:
-    return element.text
-
 def parse_sgm_files() -> Tuple[pd.DataFrame, pd.DataFrame]:
+    import bs4
     all_rows: List[dict] = []
     topics_rows: List[dict] = []
     for sgm_file in gather_sgm_files(): # @todo parallelize this
         with open(sgm_file, 'rb') as sgm_text:
-            soup = BeautifulSoup(sgm_text,'html.parser')
+            soup = bs4.BeautifulSoup(sgm_text,'html.parser')
             reuters_elements = soup.find_all('reuters')
             for row_index, reuters_element in enumerate(tqdm_with_message(reuters_elements, pre_yield_message_func=lambda index: f'Processing {sgm_file}', bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}')):
+                get_element_text = lambda element: element.text
                 text_element = at_most_one(reuters_element.find_all('text'))
                 text_element_title = at_most_one(text_element.find_all('title'))
                 text_element_dateline = at_most_one(text_element.find_all('dateline'))
