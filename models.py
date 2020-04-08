@@ -271,6 +271,7 @@ class EEPClassifier(nn.Module):
     
     def train(self) -> None:
         self.print_hyperparameters()
+        best_saved_model_location = os.path.join(self.output_directory, 'best-model.pt')
         print(f'Starting training')
         for epoch_index in range(self.number_of_epochs):
             print("\n\n\n")
@@ -282,10 +283,11 @@ class EEPClassifier(nn.Module):
                 print(f'\t  Val. F1: {valid_f1:.8f} |  Val. Loss: {valid_loss:.8f}')
                 if valid_loss < self.best_valid_loss:
                     self.best_valid_loss = valid_loss
-                    self.save_parameters('best-model.pt')
+                    self.save_parameters(best_saved_model_location)
                     self.test(epoch_index, False)
-        self.load_parameters('best-model.pt')
+        self.load_parameters(best_saved_model_location)
         self.test(epoch_index, True)
+        os.remove(best_saved_model_location)
         return
 
     def print_hyperparameters(self) -> None:
