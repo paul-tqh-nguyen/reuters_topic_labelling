@@ -18,6 +18,7 @@ Sections:
 
 import argparse
 import random
+import os
 import itertools
 from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_message
 
@@ -30,7 +31,7 @@ BATCH_SIZE = 1
 MAX_VOCAB_SIZE = 50_000
 TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION = (0.50, 0.20, 0.3)
 
-PRE_TRAINED_EMBEDDING_SPECIFICATION = "glove.6B.100d" # "glove.840B.300d"
+PRE_TRAINED_EMBEDDING_SPECIFICATION = "glove.6B.100d"
 ENCODING_HIDDEN_SIZE = 128
 NUMBER_OF_ENCODING_LAYERS = 2
 DROPOUT_PROBABILITY = 0.5
@@ -48,8 +49,8 @@ def hyperparameter_search() -> None:
     batch_size = 1
     train_portion, validation_portion, testing_portion = (0.50, 0.20, 0.3)
     
-    max_vocab_size_choices = [25_000] # [10_000, 25_000, 50_000]
-    pre_trained_embedding_specification_choices = ["glove.6B.100d"] # ['charngram.100d', 'fasttext.en.300d', 'fasttext.simple.300d', 'glove.42B.300d', 'glove.840B.300d', 'glove.twitter.27B.25d', 'glove.twitter.27B.50d', 'glove.twitter.27B.100d', 'glove.twitter.27B.200d', 'glove.6B.50d', 'glove.6B.100d', 'glove.6B.200d', 'glove.6B.300d']
+    max_vocab_size_choices = [10_000, 25_000, 50_000]
+    pre_trained_embedding_specification_choices = ['charngram.100d', 'fasttext.en.300d', 'fasttext.simple.300d', 'glove.42B.300d', 'glove.840B.300d', 'glove.twitter.27B.25d', 'glove.twitter.27B.50d', 'glove.twitter.27B.100d', 'glove.twitter.27B.200d', 'glove.6B.50d', 'glove.6B.100d', 'glove.6B.200d', 'glove.6B.300d']
     encoding_hidden_size_choices = [128, 256, 512]
     number_of_encoding_layers_choices = [1, 2]
     dropout_probability_choices = [0.0, 0.25, 0.5]
@@ -61,17 +62,23 @@ def hyperparameter_search() -> None:
                                                       dropout_probability_choices))
     random.shuffle(hyparameter_list_choices)
     for (max_vocab_size, pre_trained_embedding_specification, encoding_hidden_size, number_of_encoding_layers, dropout_probability) in hyparameter_list_choices:
-        classifier = EEPClassifier(number_of_epochs,
-                                   batch_size,
-                                   train_portion,
-                                   validation_portion,
-                                   testing_portion,
-                                   max_vocab_size,
-                                   pre_trained_embedding_specification,
-                                   encoding_hidden_size,
-                                   number_of_encoding_layers,
-                                   dropout_probability)
-        classifier.train()
+        output_directory = f"./results/epochs_{number_of_epochs}_batch_size_{batch_size}_train_frac_{train_portion}_validation_frac_{validation_portion}_testing_frac_{testing_portion}_max_vocab_{max_vocab_size}_embed_spec_{pre_trained_embedding_specification}_encoding_size_{encoding_hidden_size}_numb_encoding_layers_{number_of_encoding_layers}_dropout_{dropout_probability}"
+        final_output_results_file = os.path.join(output_directory, 'final_model_score.json')
+        if os.path.isfile(final_output_results_file):
+            print(f'Skipping result generation for {final_output_results_file}.')
+        else:
+            classifier = EEPClassifier(number_of_epochs,
+                                       batch_size,
+                                       train_portion,
+                                       validation_portion,
+                                       testing_portion,
+                                       max_vocab_size,
+                                       pre_trained_embedding_specification,
+                                       encoding_hidden_size,
+                                       number_of_encoding_layers,
+                                       dropout_probability,
+                                       output_directory)
+            classifier.train()
     return
 
 ##########

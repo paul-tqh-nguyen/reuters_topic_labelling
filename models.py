@@ -122,7 +122,7 @@ class NumericalizedBatchIterator:
         return len(self.non_numericalized_iterator)
 
 class EEPClassifier(nn.Module):
-    def __init__(self, number_of_epochs: int, batch_size: int, train_portion: float, validation_portion: float, testing_portion: float, max_vocab_size: int, pre_trained_embedding_specification: str, encoding_hidden_size: int, number_of_encoding_layers: int, dropout_probability: float):
+    def __init__(self, number_of_epochs: int, batch_size: int, train_portion: float, validation_portion: float, testing_portion: float, max_vocab_size: int, pre_trained_embedding_specification: str, encoding_hidden_size: int, number_of_encoding_layers: int, dropout_probability: float, output_directory: str):
         super().__init__()
         self.best_valid_loss = float('inf')
 
@@ -140,6 +140,9 @@ class EEPClassifier(nn.Module):
         self.load_data()
         self.initialize_model()
         self.nlp = spacy.load('en')
+        self.output_directory = output_directory
+        if not os.path.exists(self.output_directory):
+            os.makedirs(self.output_directory)
 
     def load_data(self):
         self.text_field = data.Field(tokenize = 'spacy', include_lengths = True, batch_first = True)
@@ -225,7 +228,7 @@ class EEPClassifier(nn.Module):
     def validate(self) -> Tuple[float, float]:
         return self.evaluate(self.validation_iterator, False)
 
-    def test(self, epoch_index) -> None:
+    def test(self, epoch_index: int, result_is_from_final_run: bool) -> None:
         test_loss, test_f1 = self.evaluate(self.testing_iterator, True)
         print(f'\t  Test F1: {test_f1:.8f} |  Test Loss: {test_loss:.8f}')
         if not os.path.isfile('global_best_model_score.json'):
@@ -235,28 +238,35 @@ class EEPClassifier(nn.Module):
                 current_global_best_model_score_dict = json.load(current_global_best_model_score_json_file)
                 current_global_best_model_f1: float = current_global_best_model_score_dict['test_f1']
                 log_current_model_as_best = current_global_best_model_f1 < test_f1
+        self_score_dict = {
+            'best_valid_loss': self.best_valid_loss,
+            'number_of_epochs': self.number_of_epochs,
+            'most_recently_completed_epoch_index': epoch_index,
+            'batch_size': self.batch_size,
+            'max_vocab_size': self.max_vocab_size,
+            'vocab_size': len(self.text_field.vocab), 
+            'pre_trained_embedding_specification': self.pre_trained_embedding_specification,
+            'encoding_hidden_size': self.encoding_hidden_size,
+            'number_of_encoding_layers': self.number_of_encoding_layers,
+            'dropout_probability': self.dropout_probability,
+            'output_size': self.output_size,
+            'train_portion': self.train_portion,
+            'validation_portion': self.validation_portion,
+            'testing_portion': self.testing_portion,
+            'number_of_parameters': self.count_parameters(),
+            'test_f1': test_f1,
+            'test_loss': test_loss,
+        }
         if log_current_model_as_best:
-            new_global_best_model_score_dict = {
-                'best_valid_loss': self.best_valid_loss,
-                'number_of_epochs': self.number_of_epochs,
-                'most_recently_completed_epoch_index': epoch_index,
-                'batch_size': self.batch_size,
-                'max_vocab_size': self.max_vocab_size,
-                'vocab_size': len(self.text_field.vocab), 
-                'pre_trained_embedding_specification': self.pre_trained_embedding_specification,
-                'encoding_hidden_size': self.encoding_hidden_size,
-                'number_of_encoding_layers': self.number_of_encoding_layers,
-                'dropout_probability': self.dropout_probability,
-                'output_size': self.output_size,
-                'train_portion': self.train_portion,
-                'validation_portion': self.validation_portion,
-                'testing_portion': self.testing_portion,
-                'number_of_parameters': self.count_parameters(),
-                'test_f1': test_f1,
-                'test_loss': test_loss,
-            }
             with open('global_best_model_score.json', 'w') as outfile:
-                json.dump(new_global_best_model_score_dict, outfile)
+                json.dump(self_score_dict, outfile)
+        latest_model_score_location = os.path.join(self.output_directory, 'latest_model_score.json')
+        with open(latest_model_score_location, 'w') as outfile:
+            json.dump(self_score_dict, outfile)
+        if result_is_from_final_run:
+            os.remove(latest_model_score_location)
+            with open(os.path.join(self.output_directory, 'final_model_score.json'), 'w') as outfile:
+                json.dump(self_score_dict, outfile)
         return
     
     def train(self) -> None:
@@ -273,9 +283,9 @@ class EEPClassifier(nn.Module):
                 if valid_loss < self.best_valid_loss:
                     self.best_valid_loss = valid_loss
                     self.save_parameters('best-model.pt')
-                    self.test(epoch_index)
+                    self.test(epoch_index, False)
         self.load_parameters('best-model.pt')
-        self.test(epoch_index)
+        self.test(epoch_index, True)
         return
 
     def print_hyperparameters(self) -> None:
@@ -290,6 +300,7 @@ class EEPClassifier(nn.Module):
         print(f'        number_of_encoding_layers: {self.number_of_encoding_layers}')
         print(f'        output_size: {self.output_size}')
         print(f'        dropout_probability: {self.dropout_probability}')
+        print(f'        output_directory: {self.output_directory}')
         print()
         print(f'The model has {self.count_parameters()} trainable parameters')
         print()
@@ -321,7 +332,7 @@ class EEPClassifier(nn.Module):
     def load_parameters(self, parameter_file_location: str) -> None:
         self.model.load_state_dict(torch.load(parameter_file_location))
         return
-    
+
     @debug_on_error # @todo get rid of this debug_on_error
     def classify_string(self, input_string: str) -> Set[str]:
         self.model.eval()
