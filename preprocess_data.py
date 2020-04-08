@@ -18,6 +18,7 @@ Sections:
 
 import os
 import pandas as pd
+import bs4
 from typing import Iterable, Tuple
 from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_message
 
@@ -42,7 +43,6 @@ def gather_sgm_files() -> Iterable[str]:
     return sgm_files
 
 def parse_sgm_files() -> Tuple[pd.DataFrame, pd.DataFrame]:
-    import bs4
     all_rows: List[dict] = []
     topics_rows: List[dict] = []
     for sgm_file in gather_sgm_files(): # @todo parallelize this
