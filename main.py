@@ -43,7 +43,7 @@ OUTPUT_DIR = "./default_output/"
 def train_model() -> None:
     from models import EEAPClassifier
     classifier = EEAPClassifier(NUMBER_OF_EPOCHS, BATCH_SIZE, TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION, MAX_VOCAB_SIZE, PRE_TRAINED_EMBEDDING_SPECIFICATION, ENCODING_HIDDEN_SIZE, NUMBER_OF_ENCODING_LAYERS, ATTENTION_INTERMEDIATE_SIZE, NUMBER_OF_ATTENTION_HEADS, DROPOUT_PROBABILITY, OUTPUT_DIR)
-    classifier.train()
+    classifier.train(False)
     return
 
 def hyperparameter_search() -> None:
@@ -88,7 +88,7 @@ def hyperparameter_search() -> None:
                                         number_of_attention_heads_choices,
                                         dropout_probability,
                                         output_directory)
-            classifier.train()
+            classifier.train(True)
     return
 
 ##########

@@ -15,6 +15,7 @@
 import random
 import json
 import os
+from functools import reduce
 from typing import List, Tuple, Set
 from collections import OrderedDict
 
@@ -38,6 +39,8 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
+
+NUMBER_OF_RELEVANT_RECENT_EPOCHS = 5
 
 ##################
 # Helper Classes #
@@ -331,9 +334,10 @@ class EEAPClassifier(nn.Module):
                 json.dump(self_score_dict, outfile)
         return
     
-    def train(self) -> None:
+    def train(self, quit_early_after_convergence: bool) -> None:
         self.print_hyperparameters()
         best_saved_model_location = os.path.join(self.output_directory, 'best-model.pt')
+        most_recent_validation_f1_scores = [0]*NUMBER_OF_RELEVANT_RECENT_EPOCHS
         print(f'Starting training')
         for epoch_index in range(self.number_of_epochs):
             print("\n\n\n")
@@ -347,6 +351,12 @@ class EEAPClassifier(nn.Module):
                     self.best_valid_loss = valid_loss
                     self.save_parameters(best_saved_model_location)
                     self.test(epoch_index, False)
+            if reduce(bool.__or__, (valid_f1 > previous_f1 for previous_f1 in most_recent_validation_f1_scores)):
+                most_recent_validation_f1_scores.pop(0)
+                most_recent_validation_f1_scores.append(valid_f1)
+            else:
+                print("Validation is not better than any of the {NUMBER_OF_RELEVANT_RECENT_EPOCHS} recent epochs, so training is ending early due to apparent convergence.")
+                break
         self.load_parameters(best_saved_model_location)
         self.test(epoch_index, True)
         os.remove(best_saved_model_location)
