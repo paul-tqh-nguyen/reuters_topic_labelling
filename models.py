@@ -304,7 +304,8 @@ class EEPClassifier(nn.Module):
         print(f'        dropout_probability: {self.dropout_probability}')
         print(f'        output_directory: {self.output_directory}')
         print()
-        print(f'The model has {self.count_parameters()} trainable parameters')
+        print(f'The model has {self.count_parameters()} trainable parameters.')
+        print(f"This processes's PID is {os.getpid()}.")
         print()
     
     def count_parameters(self) -> int:
