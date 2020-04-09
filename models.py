@@ -39,17 +39,94 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 
+##################
+# Helper Classes #
+##################
+
+def SoftF1Loss(y_hat:torch.Tensor, y:torch.Tensor) -> torch.Tensor:
+    batch_size, output_size = tuple(y.shape)
+    assert tuple(y.shape) == (batch_size, output_size)
+    assert tuple(y_hat.shape) == (batch_size, output_size)
+    true_positive_sum = (y_hat * y.float()).sum(dim=1)
+    false_positive_sum = (y_hat * (1-y.float())).sum(dim=1)
+    false_negative_sum = ((1-y_hat) * y.float()).sum(dim=1)
+    soft_recall = true_positive_sum / (true_positive_sum + false_positive_sum + 1e-16)
+    soft_precision = true_positive_sum / (true_positive_sum + false_negative_sum + 1e-16)
+    soft_f1 = 2 * soft_precision * soft_recall / (soft_precision + soft_recall + 1e-16)
+    mean_soft_f1 = torch.mean(soft_f1)
+    loss = 1-mean_soft_f1
+    assert not 'nan' in str(loss)
+    return loss
+
+class NumericalizedBatchIterator:
+    def __init__(self, non_numericalized_iterator, x_attribute_name, y_attribute_names):
+        self.non_numericalized_iterator = non_numericalized_iterator
+        self.x_attribute_name: str = x_attribute_name
+        self.y_attribute_names: List[str] = y_attribute_names
+        
+    def __iter__(self):
+        for non_numericalized_batch in self.non_numericalized_iterator:
+            x = getattr(non_numericalized_batch, self.x_attribute_name)
+            y = torch.cat([getattr(non_numericalized_batch, y_attribute_name).unsqueeze(1) for y_attribute_name in self.y_attribute_names], dim=1).float()
+            yield (x, y)
+            
+    def __len__(self):
+        return len(self.non_numericalized_iterator)
+
 ##########
 # Models #
 ##########
 
-class EEPNetwork(nn.Module):
-    def __init__(self, vocab_size, embedding_size, encoding_hidden_size, number_of_encoding_layers, output_size, dropout_probability, pad_idx):
+class AttentionLayers(nn.Module):
+    def __init__(self, encoding_hidden_size: int, attention_intermediate_size: int, number_of_attention_heads: int, dropout_probability: float) -> None:
+        super().__init__()
+        self.encoding_hidden_size = encoding_hidden_size
+        self.number_of_attention_heads = number_of_attention_heads
+        self.attention_layers = nn.Sequential(OrderedDict([
+            ("intermediate_attention_layer", nn.Linear(encoding_hidden_size*2, attention_intermediate_size)),
+            ("intermediate_attention_dropout_layer", nn.Dropout(dropout_probability)),
+            ("attention_activation", nn.ReLU(True)),
+            ("final_attention_layer", nn.Linear(attention_intermediate_size, number_of_attention_heads)),
+            ("final_attention_dropout_layer", nn.Dropout(dropout_probability)),
+            ("softmax_layer", nn.Softmax(dim=0)),
+        ]))
+
+    def forward(self, encoded_batch: torch.Tensor, text_lengths: torch.Tensor) -> torch.Tensor:
+        batch_size = text_lengths.shape[0]
+        max_sentence_length = encoded_batch.shape[1]
+        assert tuple(encoded_batch.shape) == (batch_size, max_sentence_length, self.encoding_hidden_size*2)
+
+        attended_batch = Variable(torch.empty(batch_size, self.encoding_hidden_size*2*self.number_of_attention_heads).to(encoded_batch.device))
+
+        for batch_index in range(batch_size):
+            sentence_length = text_lengths[batch_index]
+            sentence_matrix = encoded_batch[batch_index, :sentence_length, :]
+            assert encoded_batch[batch_index ,sentence_length:, :].data.sum() == 0
+            assert tuple(sentence_matrix.shape) == (sentence_length, self.encoding_hidden_size*2)
+
+            sentence_weights = self.attention_layers(sentence_matrix)
+            assert tuple(sentence_weights.shape) == (sentence_length, self.number_of_attention_heads)
+            assert (sentence_weights.data.sum(dim=0)-1).abs().mean() < 1e-4
+
+            weight_adjusted_sentence_matrix = torch.mm(sentence_matrix.t(), sentence_weights)
+            assert tuple(weight_adjusted_sentence_matrix.shape) == (self.encoding_hidden_size*2, self.number_of_attention_heads,)
+
+            concatenated_attention_vectors = weight_adjusted_sentence_matrix.view(-1)
+            assert tuple(concatenated_attention_vectors.shape) == (self.encoding_hidden_size*2*self.number_of_attention_heads,)
+
+            attended_batch[batch_index, :] = concatenated_attention_vectors
+
+        assert tuple(attended_batch.shape) == (batch_size, self.encoding_hidden_size*2*self.number_of_attention_heads)
+        return attended_batch
+
+class EEAPNetwork(nn.Module):
+    def __init__(self, vocab_size, embedding_size, encoding_hidden_size, number_of_encoding_layers, attention_intermediate_size, number_of_attention_heads, output_size, dropout_probability, pad_idx):
         super().__init__()
         if __debug__:
             self.embedding_size = embedding_size
             self.encoding_hidden_size = encoding_hidden_size
             self.number_of_encoding_layers = number_of_encoding_layers
+            self.number_of_attention_heads = number_of_attention_heads
             self.output_size = output_size
         self.embedding_layers = nn.Sequential(OrderedDict([
             ("embedding_layer", nn.Embedding(vocab_size, embedding_size, padding_idx=pad_idx, max_norm=1.0)),
@@ -60,8 +137,9 @@ class EEPNetwork(nn.Module):
                                        num_layers=number_of_encoding_layers,
                                        bidirectional=True,
                                        dropout=dropout_probability)
+        self.attention_layers = AttentionLayers(encoding_hidden_size, attention_intermediate_size, number_of_attention_heads, dropout_probability)
         self.prediction_layers = nn.Sequential(OrderedDict([
-            ("fully_connected_layer", nn.Linear(encoding_hidden_size*2, output_size)),
+            ("fully_connected_layer", nn.Linear(encoding_hidden_size*2*number_of_attention_heads, output_size)),
             ("dropout_layer", nn.Dropout(dropout_probability)),
             ("sigmoid_layer", nn.Sigmoid()),
         ]))
@@ -89,15 +167,10 @@ class EEPNetwork(nn.Module):
         assert tuple(encoded_batch_lengths.shape) == (batch_size,)
         assert (encoded_batch_lengths.to(DEVICE) == text_lengths).all()
 
-        mean_batch = Variable(torch.empty(batch_size, self.encoding_hidden_size*2).to(DEVICE))
-        for batch_index in range(batch_size):
-            batch_sequence_length = text_lengths[batch_index]
-            last_word_index = batch_sequence_length-1
-            mean_batch[batch_index, :] = encoded_batch[batch_index,:batch_sequence_length,:].mean(dim=0)
-            assert encoded_batch[batch_index,batch_sequence_length:,:].sum() == 0
-        assert tuple(mean_batch.shape) == (batch_size, self.encoding_hidden_size*2)
+        attended_batch = self.attention_layers(encoded_batch, text_lengths)
+        assert tuple(attended_batch.shape) == (batch_size, self.encoding_hidden_size*2*self.number_of_attention_heads)
         
-        prediction = self.prediction_layers(mean_batch)
+        prediction = self.prediction_layers(attended_batch)
         assert tuple(prediction.shape) == (batch_size, self.output_size)
         
         return prediction
@@ -106,23 +179,8 @@ class EEPNetwork(nn.Module):
 # Classifiers #
 ###############
 
-class NumericalizedBatchIterator:
-    def __init__(self, non_numericalized_iterator, x_attribute_name, y_attribute_names):
-        self.non_numericalized_iterator = non_numericalized_iterator
-        self.x_attribute_name: str = x_attribute_name
-        self.y_attribute_names: List[str] = y_attribute_names
-        
-    def __iter__(self):
-        for non_numericalized_batch in self.non_numericalized_iterator:
-            x = getattr(non_numericalized_batch, self.x_attribute_name)
-            y = torch.cat([getattr(non_numericalized_batch, y_attribute_name).unsqueeze(1) for y_attribute_name in self.y_attribute_names], dim=1).float()
-            yield (x, y)
-            
-    def __len__(self):
-        return len(self.non_numericalized_iterator)
-
-class EEPClassifier(nn.Module):
-    def __init__(self, number_of_epochs: int, batch_size: int, train_portion: float, validation_portion: float, testing_portion: float, max_vocab_size: int, pre_trained_embedding_specification: str, encoding_hidden_size: int, number_of_encoding_layers: int, dropout_probability: float, output_directory: str):
+class EEAPClassifier(nn.Module):
+    def __init__(self, number_of_epochs: int, batch_size: int, train_portion: float, validation_portion: float, testing_portion: float, max_vocab_size: int, pre_trained_embedding_specification: str, encoding_hidden_size: int, number_of_encoding_layers: int, attention_intermediate_size: int, number_of_attention_heads: int, dropout_probability: float, output_directory: str):
         super().__init__()
         self.best_valid_loss = float('inf')
 
@@ -132,6 +190,8 @@ class EEPClassifier(nn.Module):
         self.pre_trained_embedding_specification = pre_trained_embedding_specification
         self.encoding_hidden_size = encoding_hidden_size
         self.number_of_encoding_layers = number_of_encoding_layers
+        self.attention_intermediate_size = attention_intermediate_size
+        self.number_of_attention_heads = number_of_attention_heads
         self.dropout_probability = dropout_probability
         self.train_portion = train_portion
         self.validation_portion = validation_portion
@@ -180,14 +240,14 @@ class EEPClassifier(nn.Module):
     def initialize_model(self) -> None:
         vocab_size = len(self.text_field.vocab)
         embedding_size = self.dimensionality_from_pre_trained_embedding_specification()
-        self.model = EEPNetwork(vocab_size, embedding_size, self.encoding_hidden_size, self.number_of_encoding_layers, self.output_size, self.dropout_probability, self.pad_idx)
+        self.model = EEAPNetwork(vocab_size, embedding_size, self.encoding_hidden_size, self.number_of_encoding_layers, self.attention_intermediate_size, self.number_of_attention_heads, self.output_size, self.dropout_probability, self.pad_idx)
         self.model.embedding_layers.embedding_layer.weight.data.copy_(self.text_field.vocab.vectors)
         self.model.embedding_layers.embedding_layer.weight.data[self.unk_idx] = torch.zeros(embedding_size)
         self.model.embedding_layers.embedding_layer.weight.data[self.pad_idx] = torch.zeros(embedding_size)
         self.model = self.model.to(DEVICE)
         self.optimizer = optim.Adam(self.model.parameters())
-        self.loss_function = nn.BCELoss()
-        self.loss_function = self.loss_function.to(DEVICE)
+        self.loss_function = nn.BCELoss().to(DEVICE)
+        # self.loss_function = SoftF1Loss # @todo see if we can get this working.
         return
     
     def dimensionality_from_pre_trained_embedding_specification(self) -> int:
@@ -248,6 +308,8 @@ class EEPClassifier(nn.Module):
             'pre_trained_embedding_specification': self.pre_trained_embedding_specification,
             'encoding_hidden_size': self.encoding_hidden_size,
             'number_of_encoding_layers': self.number_of_encoding_layers,
+            'attention_intermediate_size': self.attention_intermediate_size,
+            'number_of_attention_heads': self.number_of_attention_heads,
             'dropout_probability': self.dropout_probability,
             'output_size': self.output_size,
             'train_portion': self.train_portion,
@@ -300,6 +362,8 @@ class EEPClassifier(nn.Module):
         print(f'        pre_trained_embedding_specification: {self.pre_trained_embedding_specification}')
         print(f'        encoding_hidden_size: {self.encoding_hidden_size}')
         print(f'        number_of_encoding_layers: {self.number_of_encoding_layers}')
+        print(f'        attention_intermediate_size: {self.attention_intermediate_size}')
+        print(f'        number_of_attention_heads: {self.number_of_attention_heads}')
         print(f'        output_size: {self.output_size}')
         print(f'        dropout_probability: {self.dropout_probability}')
         print(f'        output_directory: {self.output_directory}')
