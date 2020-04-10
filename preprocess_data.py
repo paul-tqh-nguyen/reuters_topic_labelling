@@ -192,6 +192,9 @@ def expand_digits(input_string: str) -> str:
     output_string = input_string
     for numeric_character in '0123456789':
         output_string = output_string.replace(numeric_character, ' '+numeric_character+' ')
+    for match in re.finditer(r" -[A-Za-z]+", output_string): 
+        match_string = match.group()
+        output_string = output_string.replace(match_string, ' '+match_string[2:])
     return output_string
 
 def remove_white_space_characters(input_string: str) -> str:

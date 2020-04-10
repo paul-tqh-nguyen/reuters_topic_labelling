@@ -33,6 +33,9 @@ def at_most_one(items: List):
 def eager_map(func: Callable, iterable: Iterable) -> List:
     return list(map(func, iterable))
 
+def eager_filter(func: Callable, iterable: Iterable) -> List:
+    return list(filter(func, iterable))
+
 def implies(antecedent: bool, consequent: bool) -> bool:
     return not antecedent or consequent
 

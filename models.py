@@ -20,7 +20,7 @@ from typing import List, Tuple, Set
 from collections import OrderedDict
 
 import preprocess_data
-from misc_utilites import eager_map, timer, tqdm_with_message, debug_on_error, dpn, dpf # @todo get rid of debug_on_error
+from misc_utilites import eager_map, eager_filter, timer, tqdm_with_message, debug_on_error, dpn, dpf # @todo get rid of debug_on_error
 
 import spacy
 import torch
@@ -207,6 +207,7 @@ class EEAPClassifier():
         if not os.path.exists(self.output_directory):
             os.makedirs(self.output_directory)
 
+    @debug_on_error # @todo remove this decorator
     def load_data(self):
         self.text_field = data.Field(tokenize = 'spacy', include_lengths = True, batch_first = True)
         self.label_field = data.LabelField(dtype = torch.long)
@@ -239,7 +240,15 @@ class EEAPClassifier():
         self.testing_iterator = NumericalizedBatchIterator(self.testing_iterator, 'text', self.topics)
         self.pad_idx = self.text_field.vocab.stoi[self.text_field.pad_token]
         self.unk_idx = self.text_field.vocab.stoi[self.text_field.unk_token]
-
+        
+    def determine_training_unknown_words(self) -> None:
+        pretrained_embedding_vectors = torchtext.vocab.pretrained_aliases[self.pre_trained_embedding_specification]()
+        pretrained_embedding_vectors_unk_default_tensor = pretrained_embedding_vectors.unk_init(torch.Tensor(pretrained_embedding_vectors.dim))
+        tokens = reduce(set.union, (set(example.text) for example in self.training_data))
+        is_unk_token = lambda token: torch.all(pretrained_embedding_vectors[token] == pretrained_embedding_vectors_unk_default_tensor)
+        self.training_unk_words = set(eager_filter(is_unk_token, tokens))
+        return
+        
     def initialize_model(self) -> None:
         vocab_size = len(self.text_field.vocab)
         embedding_size = self.dimensionality_from_pre_trained_embedding_specification()
@@ -334,7 +343,7 @@ class EEAPClassifier():
                 json.dump(self_score_dict, outfile)
         return
     
-    def train(self, quit_early_after_convergence: bool) -> None:
+    def train(self) -> None:
         self.print_hyperparameters()
         best_saved_model_location = os.path.join(self.output_directory, 'best-model.pt')
         most_recent_validation_f1_scores = [0]*NUMBER_OF_RELEVANT_RECENT_EPOCHS
