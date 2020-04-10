@@ -37,25 +37,23 @@ COLUMNS_RELEVANT_TO_TOPICS_DATA = {'date', 'text_dateline', 'text_title', 'text'
 # String Preprocessing Utilities #
 ##################################
 
-def remove_white_space_and_useless_characters(input_string: str) -> str:
-    input_string = input_string.replace('\n',' ')
-    input_string = input_string.replace(chr(3),'')
-    while '  ' in input_string:
-        input_string = input_string.replace('  ',' ')
-    input_string = input_string.strip()
+def pervasively_replace(input_string: str, old: str, new: str) -> str:
+    while old in input_string:
+        input_string = input_string.replace(old, new)
     return input_string
 
+def remove_white_space_and_useless_characters(input_string: str) -> str:
+    output_string = input_string
+    output_string = pervasively_replace(output_string, '\n', ' ')
+    output_string = pervasively_replace(output_string, chr(3),'')
+    output_string = pervasively_replace(output_string, '  ',' ')
+    output_string = output_string.strip()
+    return output_string
+
 def preprocess_text_element_body_text(input_string: str) -> str:
-    input_string = remove_white_space_and_useless_characters(input_string)
-    # @todo remove this debugging chunk
-    # import random
-    # print('\n'*2)
-    # print(repr(input_string))
-    # print('\n'*2)
-    # if random.randint(0,19) == 1:
-    #     exit()
-    input_string = input_string.replace('REUTER','Reuter')
-    return input_string
+    output_string = input_string
+    output_string = remove_white_space_and_useless_characters(output_string)
+    return output_string
 
 ################################
 # File Preprocessing Utilities #
@@ -109,12 +107,12 @@ def parse_sgm_files() -> Tuple[pd.DataFrame, pd.DataFrame]:
                     'unknown': eager_map(get_element_text, unknown_elements),
                     'text_title': text_element_title.text if text_element_title else None,
                     'text_dateline': text_element_dateline.text if text_element_dateline else None,
-                    'text': text_element_body.text if text_element_body else None,
+                    'text': text_element_body_text,
                     'file': sgm_file,
                     'reuter_element_position': row_index,
                 }
                 all_rows.append(all_data_row)
-
+                
                 if len(topics) > 0:
                     topic_row = {column_name:all_data_row[column_name] for column_name in COLUMNS_RELEVANT_TO_TOPICS_DATA}
                     topic_row.update({topic: True for topic in topics})
