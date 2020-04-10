@@ -233,6 +233,8 @@ def delete_topics_with_insufficient_data(topics_df: pd.DataFrame) -> pd.DataFram
     all_topics = set(topics_df.columns)-COLUMNS_RELEVANT_TO_TOPICS_DATA
     columns_with_insufficient_samples = [column_name for column_name, number_of_samples in topics_df[all_topics].sum().iteritems() if number_of_samples < MINIMUM_NUMBER_OF_SAMPLES_FOR_TOPIC]
     topics_df.drop(columns_with_insufficient_samples, axis=1, inplace=True)
+    updated_topics = set(topics_df.columns)-COLUMNS_RELEVANT_TO_TOPICS_DATA
+    topics_df = topics_df[topics_df[updated_topics].sum(axis=1)>0]
     return topics_df
 
 def gather_sgm_files() -> Iterable[str]:

@@ -356,6 +356,7 @@ class EEAPClassifier():
                 most_recent_validation_f1_scores.pop(0)
                 most_recent_validation_f1_scores.append(valid_f1)
             else:
+                print()
                 print(f"Validation is not better than any of the {NUMBER_OF_RELEVANT_RECENT_EPOCHS} recent epochs, so training is ending early due to apparent convergence.")
                 print()
                 break
