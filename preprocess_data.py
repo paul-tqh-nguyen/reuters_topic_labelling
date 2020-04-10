@@ -17,8 +17,9 @@ Sections:
 ###########
 
 import os
-import pandas as pd
 import bs4
+import re
+import pandas as pd
 from typing import Iterable, Tuple
 from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_message
 
@@ -37,6 +38,145 @@ COLUMNS_RELEVANT_TO_TOPICS_DATA = {'date', 'text_dateline', 'text_title', 'text'
 # String Preprocessing Utilities #
 ##################################
 
+CONTRACTION_EXPANSION_MAP = {
+    "ain't": "am not",
+    "aren't": "are not",
+    "can't": "cannot",
+    "can't've": "cannot have",
+    "'cause": "because",
+    "could've": "could have",
+    "couldn't": "could not",
+    "couldn't've": "could not have",
+    "didn't": "did not",
+    "doesn't": "does not",
+    "don't": "do not",
+    "hadn't": "had not",
+    "hadn't've": "had not have",
+    "hasn't": "has not",
+    "haven't": "have not",
+    "he'd": "he would",
+    "he'd've": "he would have",
+    "he'll": "he will",
+    "he'll've": "he will have",
+    "he's": "he is",
+    "how'd": "how did",
+    "how'd'y": "how do you",
+    "how'll": "how will",
+    "how's": "how is",
+    "I'd": "I would",
+    "I'd've": "I would have",
+    "I'll": "I will",
+    "I'll've": "I will have",
+    "I'm": "I am",
+    "I've": "I have",
+    "isn't": "is not",
+    "it'd": "it had",
+    "it'd've": "it would have",
+    "it'll": "it will",
+    "it'll've": "it will have",
+    "it's": "it is",
+    "let's": "let us",
+    "ma'am": "madam",
+    "mayn't": "may not",
+    "might've": "might have",
+    "mightn't": "might not",
+    "mightn't've": "might not have",
+    "must've": "must have",
+    "mustn't": "must not",
+    "mustn't've": "must not have",
+    "needn't": "need not",
+    "needn't've": "need not have",
+    "o'clock": "of the clock",
+    "oughtn't": "ought not",
+    "oughtn't've": "ought not have",
+    "shan't": "shall not",
+    "sha'n't": "shall not",
+    "shan't've": "shall not have",
+    "she'd": "she would",
+    "she'd've": "she would have",
+    "she'll": "she will",
+    "she'll've": "she will have",
+    "she's": "she is",
+    "should've": "should have",
+    "shouldn't": "should not",
+    "shouldn't've": "should not have",
+    "so've": "so have",
+    "so's": "so is",
+    "that'd": "that would",
+    "that'd've": "that would have",
+    "that's": "that is",
+    "there'd": "there had",
+    "there'd've": "there would have",
+    "there's": "there is",
+    "they'd": "they would",
+    "they'd've": "they would have",
+    "they'll": "they will",
+    "they'll've": "they will have",
+    "they're": "they are",
+    "they've": "they have",
+    "to've": "to have",
+    "wasn't": "was not",
+    "we'd": "we had",
+    "we'd've": "we would have",
+    "we'll": "we will",
+    "we'll've": "we will have",
+    "we're": "we are",
+    "we've": "we have",
+    "weren't": "were not",
+    "what'll": "what will",
+    "what'll've": "what will have",
+    "what're": "what are",
+    "what's": "what is",
+    "what've": "what have",
+    "when's": "when is",
+    "when've": "when have",
+    "where'd": "where did",
+    "where's": "where is",
+    "where've": "where have",
+    "who'll": "who will",
+    "who'll've": "who will have",
+    "who's": "who is",
+    "who've": "who have",
+    "why's": "why is",
+    "why've": "why have",
+    "will've": "will have",
+    "won't": "will not",
+    "won't've": "will not have",
+    "would've": "would have",
+    "wouldn't": "would not",
+    "wouldn't've": "would not have",
+    "y'all": "you all",
+    "y'alls": "you alls",
+    "y'all'd": "you all would",
+    "y'all'd've": "you all would have",
+    "y'all're": "you all are",
+    "y'all've": "you all have",
+    "you'd": "you had",
+    "you'd've": "you would have",
+    "you'll": "you you will",
+    "you'll've": "you you will have",
+    "you're": "you are",
+    "you've": "you have",
+}
+
+CONTRACTION_EXPANSION_PAIRS_SORTED_BIGGEST_FIRST = sorted(CONTRACTION_EXPANSION_MAP.items(), key=lambda x: len(x[0]), reverse=True)
+
+SHORTHAND_WITH_SPECIAL_CHARACTERS_EXPANSION_MAP = {
+    "w/": "with",
+    "w/o": "without",
+}
+
+SHORTHAND_WITH_SPECIAL_CHARACTERS_EXPANSION_PAIRS_SORTED_BIGGEST_FIRST = sorted(SHORTHAND_WITH_SPECIAL_CHARACTERS_EXPANSION_MAP.items(), key=lambda x: len(x[0]), reverse=True)
+
+def expand_contractions_and_shorthand_words_with_special_characters(text_string: str) -> str:
+    updated_text_string = text_string
+    for contraction, expansion in CONTRACTION_EXPANSION_PAIRS_SORTED_BIGGEST_FIRST:
+        updated_text_string = re.sub(r"\b"+contraction+r"\b", expansion, updated_text_string, 0, re.IGNORECASE)
+        updated_text_string = re.sub(r"\b"+contraction.replace("'", "")+r"\b", expansion, updated_text_string, 0, re.IGNORECASE)
+    for shorthand, expansion in SHORTHAND_WITH_SPECIAL_CHARACTERS_EXPANSION_PAIRS_SORTED_BIGGEST_FIRST:
+        updated_text_string = ' '.join([expansion if word.lower() == shorthand else word for word in updated_text_string.split()])
+    return updated_text_string
+
 def pervasively_replace(input_string: str, old: str, new: str) -> str:
     while old in input_string:
         input_string = input_string.replace(old, new)
@@ -46,12 +186,16 @@ def remove_white_space_and_useless_characters(input_string: str) -> str:
     output_string = input_string
     output_string = pervasively_replace(output_string, '\n', ' ')
     output_string = pervasively_replace(output_string, chr(3),'')
+    output_string = pervasively_replace(output_string, chr(30),'')
     output_string = pervasively_replace(output_string, '  ',' ')
+    output_string = pervasively_replace(output_string, '....','...') # @todo do we want to preprocess these more intelligently or have the model learn it?
+    output_string = expand_contractions_and_shorthand_words_with_special_characters(output_string)
     output_string = output_string.strip()
     return output_string
 
 def preprocess_text_element_body_text(input_string: str) -> str:
     output_string = input_string
+    output_string = output_string.lower()
     output_string = remove_white_space_and_useless_characters(output_string)
     return output_string
 
@@ -117,7 +261,7 @@ def parse_sgm_files() -> Tuple[pd.DataFrame, pd.DataFrame]:
                     topic_row = {column_name:all_data_row[column_name] for column_name in COLUMNS_RELEVANT_TO_TOPICS_DATA}
                     topic_row.update({topic: True for topic in topics})
                     topics_rows.append(topic_row)
-    
+                    
     all_df = pd.DataFrame(all_rows)
     topics_df = pd.DataFrame(topics_rows)
     return all_df, topics_df
