@@ -22,7 +22,6 @@ from collections import OrderedDict
 import preprocess_data
 from misc_utilites import eager_map, eager_filter, timer, tqdm_with_message, debug_on_error, dpn, dpf # @todo get rid of debug_on_error
 
-import spacy
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -202,7 +201,6 @@ class EEAPClassifier():
         
         self.load_data()
         self.initialize_model()
-        self.nlp = spacy.load('en')
         self.output_directory = output_directory
         if not os.path.exists(self.output_directory):
             os.makedirs(self.output_directory)
@@ -224,10 +222,11 @@ class EEAPClassifier():
             skip_header=True,
             fields=column_name_to_field_map)
         self.training_data, self.validation_data, self.testing_data = self.all_data.split(split_ratio=[self.train_portion, self.validation_portion, self.testing_portion], random_state = random.seed(SEED))
+        self.embedding_size = torchtext.vocab.pretrained_aliases[self.pre_trained_embedding_specification]().dim
         self.text_field.build_vocab(self.training_data, max_size = self.max_vocab_size, vectors = self.pre_trained_embedding_specification, unk_init = torch.Tensor.normal_)
         self.label_field.build_vocab(self.training_data)
         assert self.text_field.vocab.vectors.shape[0] <= self.max_vocab_size+2
-        assert self.text_field.vocab.vectors.shape[1] == self.dimensionality_from_pre_trained_embedding_specification()
+        assert self.text_field.vocab.vectors.shape[1] == self.embedding_size
         self.training_iterator, self.validation_iterator, self.testing_iterator = data.BucketIterator.splits(
             (self.training_data, self.validation_data, self.testing_data),
             batch_size = self.batch_size,
@@ -251,8 +250,7 @@ class EEAPClassifier():
         
     def initialize_model(self) -> None:
         vocab_size = len(self.text_field.vocab)
-        embedding_size = self.dimensionality_from_pre_trained_embedding_specification()
-        self.model = EEAPNetwork(vocab_size, embedding_size, self.encoding_hidden_size, self.number_of_encoding_layers, self.attention_intermediate_size, self.number_of_attention_heads, self.output_size, self.dropout_probability, self.pad_idx)
+        self.model = EEAPNetwork(vocab_size, self.embedding_size, self.encoding_hidden_size, self.number_of_encoding_layers, self.attention_intermediate_size, self.number_of_attention_heads, self.output_size, self.dropout_probability, self.pad_idx)
         self.model.embedding_layers.embedding_layer.weight.data.copy_(self.text_field.vocab.vectors)
         self.model.embedding_layers.embedding_layer.weight.data[self.unk_idx] = torch.zeros(embedding_size)
         self.model.embedding_layers.embedding_layer.weight.data[self.pad_idx] = torch.zeros(embedding_size)
@@ -261,12 +259,6 @@ class EEAPClassifier():
         self.loss_function = nn.BCELoss().to(DEVICE)
         # self.loss_function = SoftF1Loss # @todo see if we can get this working.
         return
-    
-    def dimensionality_from_pre_trained_embedding_specification(self) -> int:
-        if 'dim' in torchtext.vocab.pretrained_aliases[self.pre_trained_embedding_specification].keywords:
-            return int(torchtext.vocab.pretrained_aliases[self.pre_trained_embedding_specification].keywords['dim'])
-        else:
-            return int(self.pre_trained_embedding_specification.split('.')[-1][:-1])
 
     def train_one_epoch(self) -> Tuple[float, float]:
         epoch_loss = 0
@@ -423,7 +415,7 @@ class EEAPClassifier():
     @debug_on_error # @todo get rid of this debug_on_error
     def classify_string(self, input_string: str) -> Set[str]:
         self.model.eval()
-        tokenized = [token.text for token in self.nlp.tokenizer(input_string)]
+        tokenized = [token.text for token in self.text_field.tokenize(input_string)]
         indexed = [self.text_field.vocab.stoi[t] for t in tokenized]
         lengths = [len(indexed)]
         tensor = torch.LongTensor(indexed).to(DEVICE)
