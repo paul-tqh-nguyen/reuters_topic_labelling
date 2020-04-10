@@ -35,6 +35,7 @@ ALL_DATA_OUTPUT_CSV_FILE = os.path.join(PREPROCESSED_DATA_DIR, 'all_extracted_da
 TOPICS_DATA_OUTPUT_CSV_FILE = os.path.join(PREPROCESSED_DATA_DIR, 'topics_data.csv')
 
 COLUMNS_RELEVANT_TO_TOPICS_DATA = {'date', 'text_dateline', 'text_title', 'text', 'file', 'reuter_element_position'}
+MINIMUM_NUMBER_OF_SAMPLES_FOR_TOPIC = 10
 
 #############################################################
 # Shorthand with Special Characters & Contraction Expansion #
@@ -228,6 +229,12 @@ def preprocess_text_element_body_text(input_string: str) -> str:
 # File Preprocessing Utilities #
 ################################
 
+def delete_topics_with_insufficient_data(topics_df: pd.DataFrame) -> pd.DataFrame:
+    all_topics = set(topics_df.columns)-COLUMNS_RELEVANT_TO_TOPICS_DATA
+    columns_with_insufficient_samples = [column_name for column_name, number_of_samples in topics_df[all_topics].sum().iteritems() if number_of_samples < MINIMUM_NUMBER_OF_SAMPLES_FOR_TOPIC]
+    topics_df.drop(columns_with_insufficient_samples, axis=1, inplace=True)
+    return topics_df
+
 def gather_sgm_files() -> Iterable[str]:
     all_data_entries = os.listdir('./data/')
     sgm_files = map(lambda sgm_file_name: os.path.join(DATA_DIRECTORY, sgm_file_name), filter(lambda entry: '.' in entry and entry.split('.')[-1]=='sgm', all_data_entries))
@@ -289,8 +296,10 @@ def parse_sgm_files() -> Tuple[pd.DataFrame, pd.DataFrame]:
                     
     all_df = pd.DataFrame(all_rows)
     topics_df = pd.DataFrame(topics_rows)
+    topics_df = delete_topics_with_insufficient_data(topics_df)
     return all_df, topics_df
 
+@debug_on_error
 def preprocess_data() -> None:
     if not os.path.isdir(PREPROCESSED_DATA_DIR):
         os.makedirs(PREPROCESSED_DATA_DIR)
