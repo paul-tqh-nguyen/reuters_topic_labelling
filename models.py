@@ -244,8 +244,8 @@ class EEAPClassifier():
     def determine_training_unknown_words(self) -> None:
         pretrained_embedding_vectors = torchtext.vocab.pretrained_aliases[self.pre_trained_embedding_specification]()
         pretrained_embedding_vectors_unk_default_tensor = pretrained_embedding_vectors.unk_init(torch.Tensor(pretrained_embedding_vectors.dim))
-        tokens = reduce(set.union, (set(example.text) for example in self.training_data))
         is_unk_token = lambda token: torch.all(pretrained_embedding_vectors[token] == pretrained_embedding_vectors_unk_default_tensor)
+        tokens = reduce(set.union, (set(map(str,example.text)) for example in self.training_data))
         self.training_unk_words = set(eager_filter(is_unk_token, tokens))
         return
         

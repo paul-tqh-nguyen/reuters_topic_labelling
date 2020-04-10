@@ -192,7 +192,7 @@ def expand_digits(input_string: str) -> str:
     output_string = input_string
     for numeric_character in '0123456789':
         output_string = output_string.replace(numeric_character, ' '+numeric_character+' ')
-    for match in re.finditer(r" -[A-Za-z]+", output_string): 
+    for match in re.finditer(r" -[A-Za-z]+", output_string):
         match_string = match.group()
         output_string = output_string.replace(match_string, ' '+match_string[2:])
     return output_string
@@ -205,10 +205,13 @@ def remove_white_space_characters(input_string: str) -> str:
     output_string = output_string.strip()
     return output_string
 
-def remove_weird_characters(input_string: str) -> str:
+def dwim_weird_characters(input_string: str) -> str:
     output_string = input_string
     output_string = pervasively_replace(output_string, chr(3),'')
     output_string = pervasively_replace(output_string, chr(30),'')
+    for match in re.finditer(r'\b\w*"s\b', output_string): # "s -> 's 
+        match_string = match.group()
+        output_string = output_string.replace(match_string, match_string.replace('"s', "'s"))
     return output_string
 
 def preprocess_text_element_body_text(input_string: str) -> str:
@@ -218,7 +221,7 @@ def preprocess_text_element_body_text(input_string: str) -> str:
     output_string = expand_digits(output_string)
     output_string = expand_contractions_and_shorthand_words_with_special_characters(output_string)
     output_string = remove_white_space_characters(output_string)
-    output_string = remove_weird_characters(output_string)
+    output_string = dwim_weird_characters(output_string)
     return output_string
 
 ################################
