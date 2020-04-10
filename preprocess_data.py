@@ -33,9 +33,33 @@ TOPICS_DATA_OUTPUT_CSV_FILE = os.path.join(PREPROCESSED_DATA_DIR, 'topics_data.c
 
 COLUMNS_RELEVANT_TO_TOPICS_DATA = {'date', 'text_dateline', 'text_title', 'text', 'file', 'reuter_element_position'}
 
-###########################
-# Preprocessing Utilities #
-###########################
+##################################
+# String Preprocessing Utilities #
+##################################
+
+def remove_white_space_and_useless_characters(input_string: str) -> str:
+    input_string = input_string.replace('\n',' ')
+    input_string = input_string.replace(chr(3),'')
+    while '  ' in input_string:
+        input_string = input_string.replace('  ',' ')
+    input_string = input_string.strip()
+    return input_string
+
+def preprocess_text_element_body_text(input_string: str) -> str:
+    input_string = remove_white_space_and_useless_characters(input_string)
+    # @todo remove this debugging chunk
+    # import random
+    # print('\n'*2)
+    # print(repr(input_string))
+    # print('\n'*2)
+    # if random.randint(0,19) == 1:
+    #     exit()
+    input_string = input_string.replace('REUTER','Reuter')
+    return input_string
+
+################################
+# File Preprocessing Utilities #
+################################
 
 def gather_sgm_files() -> Iterable[str]:
     all_data_entries = os.listdir('./data/')
@@ -55,7 +79,7 @@ def parse_sgm_files() -> Tuple[pd.DataFrame, pd.DataFrame]:
                 text_element_title = at_most_one(text_element.find_all('title'))
                 text_element_dateline = at_most_one(text_element.find_all('dateline'))
                 text_element_body = at_most_one(text_element.find_all('body'))
-                text_element_body_text = text_element_body.text.strip() if text_element_body else None
+                text_element_body_text = preprocess_text_element_body_text(text_element_body.text) if text_element_body else None
                 if not text_element_body_text or len(text_element_body_text)==0:
                     continue
                 date_element = at_most_one(reuters_element.find_all('date'))

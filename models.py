@@ -182,7 +182,7 @@ class EEAPNetwork(nn.Module):
 # Classifiers #
 ###############
 
-class EEAPClassifier(nn.Module):
+class EEAPClassifier():
     def __init__(self, number_of_epochs: int, batch_size: int, train_portion: float, validation_portion: float, testing_portion: float, max_vocab_size: int, pre_trained_embedding_specification: str, encoding_hidden_size: int, number_of_encoding_layers: int, attention_intermediate_size: int, number_of_attention_heads: int, dropout_probability: float, output_directory: str):
         super().__init__()
         self.best_valid_loss = float('inf')
@@ -217,18 +217,18 @@ class EEAPClassifier(nn.Module):
                                          self.label_field) for column_name in column_names]
         self.topics: List[str] = list(set(column_names)-preprocess_data.COLUMNS_RELEVANT_TO_TOPICS_DATA)
         self.output_size = len(self.topics)
-        all_data = data.dataset.TabularDataset(
+        self.all_data = data.dataset.TabularDataset(
             path=preprocess_data.TOPICS_DATA_OUTPUT_CSV_FILE,
             format='csv',
             skip_header=True,
             fields=column_name_to_field_map)
-        training_data, validation_data, testing_data = all_data.split(split_ratio=[self.train_portion, self.validation_portion, self.testing_portion], random_state = random.seed(SEED))
-        self.text_field.build_vocab(training_data, max_size = self.max_vocab_size, vectors = self.pre_trained_embedding_specification, unk_init = torch.Tensor.normal_)
-        self.label_field.build_vocab(training_data)
+        self.training_data, self.validation_data, self.testing_data = self.all_data.split(split_ratio=[self.train_portion, self.validation_portion, self.testing_portion], random_state = random.seed(SEED))
+        self.text_field.build_vocab(self.training_data, max_size = self.max_vocab_size, vectors = self.pre_trained_embedding_specification, unk_init = torch.Tensor.normal_)
+        self.label_field.build_vocab(self.training_data)
         assert self.text_field.vocab.vectors.shape[0] <= self.max_vocab_size+2
         assert self.text_field.vocab.vectors.shape[1] == self.dimensionality_from_pre_trained_embedding_specification()
         self.training_iterator, self.validation_iterator, self.testing_iterator = data.BucketIterator.splits(
-            (training_data, validation_data, testing_data),
+            (self.training_data, self.validation_data, self.testing_data),
             batch_size = self.batch_size,
             sort_key=lambda x: len(x.text),
             sort_within_batch = True,
@@ -355,7 +355,8 @@ class EEAPClassifier(nn.Module):
                 most_recent_validation_f1_scores.pop(0)
                 most_recent_validation_f1_scores.append(valid_f1)
             else:
-                print("Validation is not better than any of the {NUMBER_OF_RELEVANT_RECENT_EPOCHS} recent epochs, so training is ending early due to apparent convergence.")
+                print(f"Validation is not better than any of the {NUMBER_OF_RELEVANT_RECENT_EPOCHS} recent epochs, so training is ending early due to apparent convergence.")
+                print()
                 break
         self.load_parameters(best_saved_model_location)
         self.test(epoch_index, True)
