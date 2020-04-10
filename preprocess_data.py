@@ -12,6 +12,8 @@ Sections:
 * Driver
 """
 
+# @todo update the sections outline
+
 ###########
 # Imports #
 ###########
@@ -34,9 +36,9 @@ TOPICS_DATA_OUTPUT_CSV_FILE = os.path.join(PREPROCESSED_DATA_DIR, 'topics_data.c
 
 COLUMNS_RELEVANT_TO_TOPICS_DATA = {'date', 'text_dateline', 'text_title', 'text', 'file', 'reuter_element_position'}
 
-##################################
-# String Preprocessing Utilities #
-##################################
+#############################################################
+# Shorthand with Special Characters & Contraction Expansion #
+#############################################################
 
 CONTRACTION_EXPANSION_MAP = {
     "ain't": "am not",
@@ -177,26 +179,43 @@ def expand_contractions_and_shorthand_words_with_special_characters(text_string:
         updated_text_string = ' '.join([expansion if word.lower() == shorthand else word for word in updated_text_string.split()])
     return updated_text_string
 
+##########################################
+# General String Preprocessing Utilities #
+##########################################
+
 def pervasively_replace(input_string: str, old: str, new: str) -> str:
     while old in input_string:
         input_string = input_string.replace(old, new)
     return input_string
 
-def remove_white_space_and_useless_characters(input_string: str) -> str:
+def expand_digits(input_string: str) -> str:
     output_string = input_string
+    for numeric_character in '0123456789':
+        output_string = output_string.replace(numeric_character, ' '+numeric_character+' ')
+    return output_string
+
+def remove_white_space_characters(input_string: str) -> str:
+    output_string = input_string
+    output_string = pervasively_replace(output_string, '\t', ' ')
     output_string = pervasively_replace(output_string, '\n', ' ')
+    output_string = pervasively_replace(output_string, '  ',' ')
+    output_string = output_string.strip()
+    return output_string
+
+def remove_weird_characters(input_string: str) -> str:
+    output_string = input_string
     output_string = pervasively_replace(output_string, chr(3),'')
     output_string = pervasively_replace(output_string, chr(30),'')
-    output_string = pervasively_replace(output_string, '  ',' ')
-    output_string = pervasively_replace(output_string, '....','...') # @todo do we want to preprocess these more intelligently or have the model learn it?
-    output_string = expand_contractions_and_shorthand_words_with_special_characters(output_string)
-    output_string = output_string.strip()
     return output_string
 
 def preprocess_text_element_body_text(input_string: str) -> str:
     output_string = input_string
     output_string = output_string.lower()
-    output_string = remove_white_space_and_useless_characters(output_string)
+    output_string = pervasively_replace(output_string, '....','...') # @todo do we want to preprocess these more intelligently or have the model learn it?
+    output_string = expand_digits(output_string)
+    output_string = expand_contractions_and_shorthand_words_with_special_characters(output_string)
+    output_string = remove_white_space_characters(output_string)
+    output_string = remove_weird_characters(output_string)
     return output_string
 
 ################################
