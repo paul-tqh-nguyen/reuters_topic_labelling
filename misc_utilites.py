@@ -30,6 +30,13 @@ def only_one(items: List):
 def at_most_one(items: List):
     return only_one(items) if items else None
 
+def parallel_map(func: Callable, iterable: Iterable) -> List:
+    p = multiprocessing.Pool()
+    result = p.map(func, iterable)
+    p.close()
+    p.join()
+    return result
+
 def eager_map(func: Callable, iterable: Iterable) -> List:
     return list(map(func, iterable))
 

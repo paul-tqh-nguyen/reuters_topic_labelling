@@ -16,7 +16,7 @@ import random
 import json
 import os
 from functools import reduce
-from typing import List, Tuple, Set
+from typing import List, Tuple, Set, Callable
 from collections import OrderedDict
 
 import preprocess_data
@@ -40,6 +40,7 @@ torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 
 NUMBER_OF_RELEVANT_RECENT_EPOCHS = 5
+MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET = 35.0
 
 ##################
 # Helper Classes #
@@ -74,6 +75,62 @@ class NumericalizedBatchIterator:
             
     def __len__(self):
         return len(self.non_numericalized_iterator)
+
+############################
+# Data Balancing Utilities #
+############################
+
+def chi_squared_loss(histogram: torch.Tensor) -> torch.Tensor:
+    expected_value = torch.mean(histogram)
+    loss = torch.sum((histogram-expected_value)**2)/expected_value
+    return loss
+
+def normalize_occurences(unnormalized_occurences: torch.Tensor) -> torch.Tensor:
+    positive_occurences = torch.exp(unnormalized_occurences)
+    greater_than_one_occurences = positive_occurences + 1
+    return greater_than_one_occurences
+
+def _sanity_check_discrete_occurences(discrete_occurences: torch.Tensor, original_labels_matrix: torch.Tensor, example_numericalized_labels: Callable[[torchtext.data.example.Example], torch.Tensor], dataset: torchtext.data.dataset.Dataset) -> None:
+    if __debug__:
+        from statistics import mean
+        label_to_index_and_example_pairs_map = dict()
+        for example_index, (label_tensor, example) in enumerate(zip(original_labels_matrix, dataset)):
+            label = tuple(eager_map(torch.Tensor.item, label_tensor))
+            assert label == tuple(eager_map(torch.Tensor.item, example_numericalized_labels(example)))
+            if label in label_to_index_and_example_pairs_map:
+                label_to_index_and_example_pairs_map[label].append((example_index, example))
+            else:
+                label_to_index_and_example_pairs_map[label] = [(example_index, example)]
+        for label, index_and_example_pairs in label_to_index_and_example_pairs_map.items():
+            indices = eager_map(lambda x: x[0], index_and_example_pairs)
+            mean_discrete_occurences_for_label = mean([discrete_occurences[index].item() for index in indices])
+            for index, example in index_and_example_pairs:
+                assert discrete_occurences[index].item() - mean_discrete_occurences_for_label < 1
+    return
+
+def balance_dataset_wrt_chi_squared_test(dataset: torchtext.data.dataset.Dataset, example_numericalized_labels: Callable[[torchtext.data.example.Example], torch.Tensor]) -> torchtext.data.dataset.Dataset:
+    original_labels_matrix = torch.stack([example_numericalized_labels(example) for example in dataset]).to(DEVICE)
+    occurences = nn.Parameter(torch.ones([len(dataset),1], dtype=float).to(DEVICE))
+    optimizer = optim.Adam([occurences])
+    loss_function = chi_squared_loss
+    loss = float('inf')
+    while loss > MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET:
+        optimizer.zero_grad()
+        normalized_occurences = normalize_occurences(occurences)
+        total_histogram = (original_labels_matrix * normalized_occurences).sum(dim=0)
+        loss = chi_squared_loss(total_histogram)
+        loss.backward()
+        optimizer.step()
+        learned_final_histogram = (original_labels_matrix * normalized_occurences).sum(dim=0).to('cpu').detach()
+    discrete_occurences = normalized_occurences.int().detach()
+    _sanity_check_discrete_occurences(discrete_occurences, original_labels_matrix, example_numericalized_labels, dataset)
+    oversampled_examples = []
+    for example, example_number_of_occurences in zip(dataset, discrete_occurences):
+        for _ in range(example_number_of_occurences.item()):
+            oversampled_examples.append(example)
+    oversampled_dataset = torchtext.data.dataset.Dataset(oversampled_examples, dataset.fields)
+    assert torch.all(torch.stack(eager_map(example_numericalized_labels, oversampled_dataset)).to(DEVICE).sum(dim=0) == (original_labels_matrix * discrete_occurences).sum(dim=0))
+    return oversampled_dataset
 
 ##########
 # Models #
@@ -222,6 +279,7 @@ class EEAPClassifier():
             skip_header=True,
             fields=column_name_to_field_map)
         self.training_data, self.validation_data, self.testing_data = self.all_data.split(split_ratio=[self.train_portion, self.validation_portion, self.testing_portion], random_state = random.seed(SEED))
+        self.balance_training_data()
         self.embedding_size = torchtext.vocab.pretrained_aliases[self.pre_trained_embedding_specification]().dim
         self.text_field.build_vocab(self.training_data, max_size = self.max_vocab_size, vectors = self.pre_trained_embedding_specification, unk_init = torch.Tensor.normal_)
         self.label_field.build_vocab(self.training_data)
@@ -239,7 +297,13 @@ class EEAPClassifier():
         self.testing_iterator = NumericalizedBatchIterator(self.testing_iterator, 'text', self.topics)
         self.pad_idx = self.text_field.vocab.stoi[self.text_field.pad_token]
         self.unk_idx = self.text_field.vocab.stoi[self.text_field.unk_token]
-        
+        return
+    
+    def balance_training_data(self) -> None:
+        example_numericalized_labels = lambda example: torch.tensor([bool(getattr(example, topic)) for topic in self.topics], dtype=int)
+        self.training_data = balance_dataset_wrt_chi_squared_test(self.training_data, example_numericalized_labels)
+        return
+    
     def determine_training_unknown_words(self) -> None:
         pretrained_embedding_vectors = torchtext.vocab.pretrained_aliases[self.pre_trained_embedding_specification]()
         pretrained_embedding_vectors_unk_default_tensor = pretrained_embedding_vectors.unk_init(torch.Tensor(pretrained_embedding_vectors.dim))
