@@ -40,7 +40,7 @@ torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 
 NUMBER_OF_RELEVANT_RECENT_EPOCHS = 5
-MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET = float('inf') #10_000_000 # 35.0
+MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET = 30_000_000 # float('inf')
 
 ##################
 # Helper Classes #
@@ -58,7 +58,7 @@ def soft_f1_loss(y_hat:torch.Tensor, y:torch.Tensor) -> torch.Tensor:
     soft_f1 = 2 * soft_precision * soft_recall / (soft_precision + soft_recall + 1e-16)
     mean_soft_f1 = torch.mean(soft_f1)
     loss = 1-mean_soft_f1
-    assert not 'nan' in str(loss)
+    assert not 'nan' in str(loss) # @todo get rid of this or make it more elegant
     return loss
 
 class NumericalizedBatchIterator:
