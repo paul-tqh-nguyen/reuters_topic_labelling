@@ -39,6 +39,7 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 
+F1_THRESHOLD_OPTIMIZATION_ITERATOR_BATCH_SIZE = 32
 NUMBER_OF_RELEVANT_RECENT_EPOCHS = 5
 MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET = 30_000_000 # float('inf')
 
@@ -298,6 +299,14 @@ class EEAPClassifier():
         self.training_iterator = NumericalizedBatchIterator(self.training_iterator, 'text', self.topics)
         self.validation_iterator = NumericalizedBatchIterator(self.validation_iterator, 'text', self.topics)
         self.testing_iterator = NumericalizedBatchIterator(self.testing_iterator, 'text', self.topics)
+        self.f1_threshold_optimization_iterator = data.BucketIterator.splits(
+            (self.training_data,),
+            batch_size = F1_THRESHOLD_OPTIMIZATION_ITERATOR_BATCH_SIZE,
+            sort_key=lambda x: len(x.text),
+            sort_within_batch = True,
+            repeat=False,
+            device = DEVICE)
+        self.f1_threshold_optimization_iterator = NumericalizedBatchIterator(self.f1_threshold_optimization_iterator, 'text', self.topics)
         self.pad_idx = self.text_field.vocab.stoi[self.text_field.pad_token]
         self.unk_idx = self.text_field.vocab.stoi[self.text_field.unk_token]
         return
@@ -459,17 +468,19 @@ class EEAPClassifier():
         return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
     def optimize_f1_threshold(self) -> None:
-        number_of_training_batches = len(self.training_iterator)
+        number_of_training_batches = len(self.f1_threshold_optimization_iterator)
+        total_number_of_examples = 0
         self.model.eval()
         with torch.no_grad():
             training_mean_of_positives = torch.zeros(self.output_size).to(DEVICE)
             training_mean_of_negatives = torch.zeros(self.output_size).to(DEVICE)
-            for (texts, text_lengths), multiclass_labels in tqdm_with_message(self.training_iterator, post_yield_message_func = lambda index: f'Optimizing F1 Threshold', total=number_of_training_batches, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
+            for (texts, text_lengths), multiclass_labels in tqdm_with_message(self.f1_threshold_optimization_iterator, post_yield_message_func = lambda index: f'Optimizing F1 Threshold', total=number_of_training_batches, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
                 predictions = self.model(texts, text_lengths)
                 training_mean_of_positives += ((predictions.data * multiclass_labels).sum(dim=1) / multiclass_labels.sum(dim=1))
                 training_mean_of_negatives += ((predictions.data * (1-multiclass_labels)).sum(dim=1) / (1-multiclass_labels).sum(dim=1))
-            training_mean_of_positives /= number_of_training_batches
-            training_mean_of_negatives /= number_of_training_batches
+                total_number_of_examples += text_lengths.shape[0]
+            training_mean_of_positives /= total_number_of_examples
+            training_mean_of_negatives /= total_number_of_examples
             self.f1_threshold = (training_mean_of_positives + training_mean_of_negatives) / 2.0
         return
     
