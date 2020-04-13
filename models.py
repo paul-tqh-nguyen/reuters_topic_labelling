@@ -40,21 +40,21 @@ torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 
 NUMBER_OF_RELEVANT_RECENT_EPOCHS = 5
-MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET = 35.0
+MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET = float('inf') #10_000_000 # 35.0
 
 ##################
 # Helper Classes #
 ##################
 
-def SoftF1Loss(y_hat:torch.Tensor, y:torch.Tensor) -> torch.Tensor:
+def soft_f1_loss(y_hat:torch.Tensor, y:torch.Tensor) -> torch.Tensor:
     batch_size, output_size = tuple(y.shape)
     assert tuple(y.shape) == (batch_size, output_size)
     assert tuple(y_hat.shape) == (batch_size, output_size)
     true_positive_sum = (y_hat * y.float()).sum(dim=1)
     false_positive_sum = (y_hat * (1-y.float())).sum(dim=1)
     false_negative_sum = ((1-y_hat) * y.float()).sum(dim=1)
-    soft_recall = true_positive_sum / (true_positive_sum + false_positive_sum + 1e-16)
-    soft_precision = true_positive_sum / (true_positive_sum + false_negative_sum + 1e-16)
+    soft_recall = true_positive_sum / (true_positive_sum + false_negative_sum + 1e-16)
+    soft_precision = true_positive_sum / (true_positive_sum + false_positive_sum + 1e-16)
     soft_f1 = 2 * soft_precision * soft_recall / (soft_precision + soft_recall + 1e-16)
     mean_soft_f1 = torch.mean(soft_f1)
     loss = 1-mean_soft_f1
@@ -112,24 +112,26 @@ def balance_dataset_wrt_chi_squared_test(dataset: torchtext.data.dataset.Dataset
     original_labels_matrix = torch.stack([example_numericalized_labels(example) for example in dataset]).to(DEVICE)
     occurences = nn.Parameter(torch.ones([len(dataset),1], dtype=float).to(DEVICE))
     optimizer = optim.Adam([occurences])
-    loss_function = chi_squared_loss
     loss = float('inf')
-    while loss > MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET:
-        optimizer.zero_grad()
-        normalized_occurences = normalize_occurences(occurences)
-        total_histogram = (original_labels_matrix * normalized_occurences).sum(dim=0)
-        loss = chi_squared_loss(total_histogram)
-        loss.backward()
-        optimizer.step()
-        learned_final_histogram = (original_labels_matrix * normalized_occurences).sum(dim=0).to('cpu').detach()
-    discrete_occurences = normalized_occurences.int().detach()
-    _sanity_check_discrete_occurences(discrete_occurences, original_labels_matrix, example_numericalized_labels, dataset)
-    oversampled_examples = []
-    for example, example_number_of_occurences in zip(dataset, discrete_occurences):
-        for _ in range(example_number_of_occurences.item()):
-            oversampled_examples.append(example)
-    oversampled_dataset = torchtext.data.dataset.Dataset(oversampled_examples, dataset.fields)
-    assert torch.all(torch.stack(eager_map(example_numericalized_labels, oversampled_dataset)).to(DEVICE).sum(dim=0) == (original_labels_matrix * discrete_occurences).sum(dim=0))
+    if loss <= MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET:
+        oversampled_dataset = dataset
+    else:
+        while loss > MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET:
+            optimizer.zero_grad()
+            normalized_occurences = normalize_occurences(occurences)
+            total_histogram = (original_labels_matrix * normalized_occurences).sum(dim=0)
+            loss = chi_squared_loss(total_histogram)
+            loss.backward()
+            optimizer.step()
+            learned_final_histogram = (original_labels_matrix * normalized_occurences).sum(dim=0).to('cpu').detach()
+        discrete_occurences = normalized_occurences.int().detach()
+        _sanity_check_discrete_occurences(discrete_occurences, original_labels_matrix, example_numericalized_labels, dataset)
+        oversampled_examples = []
+        for example, example_number_of_occurences in zip(dataset, discrete_occurences):
+            for _ in range(example_number_of_occurences.item()):
+                oversampled_examples.append(example)
+        oversampled_dataset = torchtext.data.dataset.Dataset(oversampled_examples, dataset.fields)
+        assert torch.all(torch.stack(eager_map(example_numericalized_labels, oversampled_dataset)).to(DEVICE).sum(dim=0) == (original_labels_matrix * discrete_occurences).sum(dim=0))
     return oversampled_dataset
 
 ##########
@@ -224,7 +226,7 @@ class EEAPNetwork(nn.Module):
         assert tuple(encoding_hidden_state.shape) == (self.number_of_encoding_layers*2, batch_size, self.encoding_hidden_size)
         assert tuple(encoding_cell_state.shape) == (self.number_of_encoding_layers*2, batch_size, self.encoding_hidden_size)
         assert tuple(encoded_batch_lengths.shape) == (batch_size,)
-        assert (encoded_batch_lengths.to(DEVICE) == text_lengths).all()
+        assert (encoded_batch_lengths.to(text_lengths.device) == text_lengths).all()
 
         attended_batch = self.attention_layers(encoded_batch, text_lengths)
         assert tuple(attended_batch.shape) == (batch_size, self.encoding_hidden_size*2*self.number_of_attention_heads)
@@ -257,6 +259,7 @@ class EEAPClassifier():
         self.testing_portion = testing_portion
         
         self.load_data()
+        self.reset_f1_threshold()
         self.initialize_model()
         self.output_directory = output_directory
         if not os.path.exists(self.output_directory):
@@ -321,7 +324,7 @@ class EEAPClassifier():
         self.model = self.model.to(DEVICE)
         self.optimizer = optim.Adam(self.model.parameters())
         self.loss_function = nn.BCELoss().to(DEVICE)
-        # self.loss_function = SoftF1Loss # @todo see if we can get this working.
+        # self.loss_function = soft_f1_loss # @todo see if we can get this working.
         return
 
     def train_one_epoch(self) -> Tuple[float, float]:
@@ -344,14 +347,17 @@ class EEAPClassifier():
         epoch_loss = 0
         epoch_f1 = 0
         self.model.eval()
+        self.optimize_f1_threshold()
+        iterator_size = len(iterator)
         with torch.no_grad():
-            for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'{"Testing" if iterator_is_test_set else "Validation"} F1 {epoch_f1/(index+1):.8f}', total=len(iterator), bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
+            for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'{"Testing" if iterator_is_test_set else "Validation"} F1 {epoch_f1/(index+1):.8f}', total=iterator_size, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
                 predictions = self.model(texts, text_lengths).squeeze(1)
                 loss = self.loss_function(predictions, multiclass_labels)
                 f1 = self.f1_score_of_discretized_values(predictions, multiclass_labels)
                 epoch_loss += loss.item()
                 epoch_f1 += f1
-        return epoch_loss / len(iterator), epoch_f1 / len(iterator)
+        self.reset_f1_threshold()
+        return epoch_loss / iterator_size, epoch_f1 / iterator_size
 
     def validate(self) -> Tuple[float, float]:
         return self.evaluate(self.validation_iterator, False)
@@ -451,19 +457,38 @@ class EEAPClassifier():
     
     def count_parameters(self) -> int:
         return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+
+    def optimize_f1_threshold(self) -> None:
+        number_of_training_batches = len(self.training_iterator)
+        self.model.eval()
+        with torch.no_grad():
+            training_mean_of_positives = torch.zeros(self.output_size).to(DEVICE)
+            training_mean_of_negatives = torch.zeros(self.output_size).to(DEVICE)
+            for (texts, text_lengths), multiclass_labels in tqdm_with_message(self.training_iterator, post_yield_message_func = lambda index: f'Optimizing F1 Threshold', total=number_of_training_batches, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
+                predictions = self.model(texts, text_lengths)
+                training_mean_of_positives += ((predictions.data * multiclass_labels).sum(dim=1) / multiclass_labels.sum(dim=1))
+                training_mean_of_negatives += ((predictions.data * (1-multiclass_labels)).sum(dim=1) / (1-multiclass_labels).sum(dim=1))
+            training_mean_of_positives /= number_of_training_batches
+            training_mean_of_negatives /= number_of_training_batches
+            self.f1_threshold = (training_mean_of_positives + training_mean_of_negatives) / 2.0
+        return
+    
+    def reset_f1_threshold(self) -> None:
+        self.f1_threshold = torch.ones(self.output_size, dtype=float).to(DEVICE)*0.5
+        return 
     
     def f1_score_of_discretized_values(self, y_hat: torch.Tensor, y: torch.Tensor) -> float:
         batch_size = y.shape[0]
         assert batch_size <= self.batch_size
         assert tuple(y.shape) == (batch_size, self.output_size)
         assert tuple(y_hat.shape) == (batch_size, self.output_size)
-        y_hat_discretized = torch.round(y_hat)
+        y_hat_discretized = (y_hat > self.f1_threshold).int()
         true_positive_count = ((y_hat_discretized == y) & y.bool()).float().sum(dim=1)
         false_positive_count = ((y_hat_discretized != y) & y.bool()).float().sum(dim=1)
         false_negative_count = ((y_hat_discretized != y) & ~y.bool()).float().sum(dim=1)
         _make_safe_divisor = lambda divisor: divisor + (~(divisor.bool())).float()
-        recall = true_positive_count / _make_safe_divisor(true_positive_count + false_positive_count)
-        precision = true_positive_count / _make_safe_divisor(true_positive_count + false_negative_count)
+        recall = true_positive_count / _make_safe_divisor(true_positive_count + false_negative_count)
+        precision = true_positive_count / _make_safe_divisor(true_positive_count + false_positive_count)
         f1 = 2 * precision * recall / _make_safe_divisor(precision + recall)
         mean_f1 = torch.mean(f1).item()
         assert isinstance(mean_f1, float)
