@@ -37,15 +37,15 @@ SEED = 1234
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 torch.manual_seed(SEED)
-torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.deterministic = __debug__
+torch.backends.cudnn.benchmark = not __debug__
 
-F1_THRESHOLD_OPTIMIZATION_ITERATOR_BATCH_SIZE = 32
 NUMBER_OF_RELEVANT_RECENT_EPOCHS = 5
-MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET = 30_000_000 # float('inf')
+MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET = float('inf') # 30_000_000
 
-####################
-# Helper Utilities #
-####################
+##################
+# Helper Classes #
+##################
 
 def tensor_has_nan(tensor: torch.Tensor) -> bool:
     return (tensor != tensor).any().item()
@@ -60,9 +60,9 @@ def soft_f1_loss(y_hat:torch.Tensor, y:torch.Tensor) -> torch.Tensor:
     batch_size, output_size = tuple(y.shape)
     assert tuple(y.shape) == (batch_size, output_size)
     assert tuple(y_hat.shape) == (batch_size, output_size)
-    true_positive_sum = (y_hat * y.float()).sum(dim=1)
-    false_positive_sum = (y_hat * (1-y.float())).sum(dim=1)
-    false_negative_sum = ((1-y_hat) * y.float()).sum(dim=1)
+    true_positive_sum = (y_hat * y.float()).sum(dim=0)
+    false_positive_sum = (y_hat * (1-y.float())).sum(dim=0)
+    false_negative_sum = ((1-y_hat) * y.float()).sum(dim=0)
     soft_recall = true_positive_sum / (true_positive_sum + false_negative_sum + 1e-16)
     soft_precision = true_positive_sum / (true_positive_sum + false_positive_sum + 1e-16)
     soft_f1 = 2 * soft_precision * soft_recall / (soft_precision + soft_recall + 1e-16)
@@ -133,7 +133,6 @@ def balance_dataset_wrt_chi_squared_test(dataset: torchtext.data.dataset.Dataset
             loss = chi_squared_loss(total_histogram)
             loss.backward()
             optimizer.step()
-            learned_final_histogram = (original_labels_matrix * normalized_occurences).sum(dim=0).to('cpu').detach()
         discrete_occurences = normalized_occurences.int().detach()
         _sanity_check_discrete_occurences(discrete_occurences, original_labels_matrix, example_numericalized_labels, dataset)
         oversampled_examples = []
@@ -159,9 +158,9 @@ class AttentionLayers(nn.Module):
             ("attention_activation", nn.ReLU(True)),
             ("final_attention_layer", nn.Linear(attention_intermediate_size, number_of_attention_heads)),
             ("final_attention_dropout_layer", nn.Dropout(dropout_probability)),
-            ("softmax_layer", nn.Softmax(dim=0)),
+            ("softmax_layer", nn.Softmax(dim=0)), # @todo is this right? softmaxing along dim 0? URGENT
         ]))
-
+    
     def forward(self, encoded_batch: torch.Tensor, text_lengths: torch.Tensor) -> torch.Tensor:
         batch_size = text_lengths.shape[0]
         max_sentence_length = encoded_batch.shape[1]
@@ -177,7 +176,7 @@ class AttentionLayers(nn.Module):
 
             sentence_weights = self.attention_layers(sentence_matrix)
             assert tuple(sentence_weights.shape) == (sentence_length, self.number_of_attention_heads)
-            assert (sentence_weights.data.sum(dim=0)-1).abs().mean() < 1e-4
+            assert (sentence_weights.data.sum(dim=0)-1).abs().mean() < 1e-4 # @todo can se use math.isclose here?
 
             weight_adjusted_sentence_matrix = torch.mm(sentence_matrix.t(), sentence_weights)
             assert tuple(weight_adjusted_sentence_matrix.shape) == (self.encoding_hidden_size*2, self.number_of_attention_heads,)
@@ -275,7 +274,6 @@ class EEAPClassifier():
         if not os.path.exists(self.output_directory):
             os.makedirs(self.output_directory)
 
-    @debug_on_error # @todo remove this decorator
     def load_data(self):
         self.text_field = data.Field(tokenize = 'spacy', include_lengths = True, batch_first = True)
         self.label_field = data.LabelField(dtype = torch.long)
@@ -308,14 +306,6 @@ class EEAPClassifier():
         self.training_iterator = NumericalizedBatchIterator(self.training_iterator, 'text', self.topics)
         self.validation_iterator = NumericalizedBatchIterator(self.validation_iterator, 'text', self.topics)
         self.testing_iterator = NumericalizedBatchIterator(self.testing_iterator, 'text', self.topics)
-        self.f1_threshold_optimization_iterator, = data.BucketIterator.splits(
-            (self.training_data,),
-            batch_size = F1_THRESHOLD_OPTIMIZATION_ITERATOR_BATCH_SIZE,
-            sort_key=lambda x: len(x.text),
-            sort_within_batch = True,
-            repeat=False,
-            device = DEVICE)
-        self.f1_threshold_optimization_iterator = NumericalizedBatchIterator(self.f1_threshold_optimization_iterator, 'text', self.topics)
         self.pad_idx = self.text_field.vocab.stoi[self.text_field.pad_token]
         self.unk_idx = self.text_field.vocab.stoi[self.text_field.unk_token]
         return
@@ -362,20 +352,21 @@ class EEAPClassifier():
         return epoch_loss / number_of_training_batches, epoch_f1 / number_of_training_batches
 
     def evaluate(self, iterator, iterator_is_test_set) -> Tuple[float, float]:
+        print("Without optimization.")
         epoch_loss = 0
         epoch_f1 = 0
         self.model.eval()
         iterator_size = len(iterator)
         with torch.no_grad():
-            for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'WITHOUT!! F1 {epoch_f1/(index+1):.8f}', total=iterator_size, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
+            for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'{"Testing" if iterator_is_test_set else "Validation"} F1 {epoch_f1/(index+1):.8f}', total=iterator_size, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
                 predictions = self.model(texts, text_lengths).squeeze(1)
                 loss = self.loss_function(predictions, multiclass_labels)
                 f1 = self.f1_score_of_discretized_values(predictions, multiclass_labels)
                 epoch_loss += loss.item()
                 epoch_f1 += f1
-        print(f'Without F1 Optimization {epoch_loss / iterator_size}')
-        print(f'Without F1 Optimization {epoch_f1 / iterator_size}')
-        # @todo remove the above
+        self.reset_f1_threshold()
+        
+        print("=" * 40) # Remove the above
         
         epoch_loss = 0
         epoch_f1 = 0
@@ -390,8 +381,6 @@ class EEAPClassifier():
                 epoch_loss += loss.item()
                 epoch_f1 += f1
         self.reset_f1_threshold()
-        print(f'With F1 Optimization {epoch_loss / iterator_size}')
-        print(f'With F1 Optimization {epoch_f1 / iterator_size}')
         return epoch_loss / iterator_size, epoch_f1 / iterator_size
 
     def validate(self) -> Tuple[float, float]:
@@ -470,7 +459,7 @@ class EEAPClassifier():
         os.remove(best_saved_model_location)
         return
 
-    def print_hyperparameters(self) -> None:
+    def print_hyperparameters(self) -> None: # @todo redo these with all the updated parameters
         print()
         print(f"Model hyperparameters are:")
         print(f'        number_of_epochs: {self.number_of_epochs}')
@@ -489,29 +478,53 @@ class EEAPClassifier():
         print(f'The model has {self.count_parameters()} trainable parameters.')
         print(f"This processes's PID is {os.getpid()}.")
         print()
-    
+        
     def count_parameters(self) -> int:
         return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
     def optimize_f1_threshold(self) -> None:
-        number_of_training_batches = len(self.f1_threshold_optimization_iterator)
-        total_number_of_examples = 0
         self.model.eval()
         with torch.no_grad():
-            training_mean_of_positives = torch.zeros(self.output_size).to(DEVICE)
-            training_mean_of_negatives = torch.zeros(self.output_size).to(DEVICE)
-            for (texts, text_lengths), multiclass_labels in tqdm_with_message(self.f1_threshold_optimization_iterator, post_yield_message_func = lambda index: f'Optimizing F1 Threshold', total=number_of_training_batches, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
+            number_of_training_batches = len(self.training_iterator)
+            training_sum_of_positives = torch.zeros(self.output_size).to(DEVICE)
+            training_sum_of_negatives = torch.zeros(self.output_size).to(DEVICE)
+            training_count_of_positives = torch.zeros(self.output_size).to(DEVICE)
+            training_count_of_negatives = torch.zeros(self.output_size).to(DEVICE)
+            for (texts, text_lengths), multiclass_labels in tqdm_with_message(self.training_iterator, post_yield_message_func = lambda index: f'Optimizing F1 Threshold', total=number_of_training_batches, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
                 predictions = self.model(texts, text_lengths)
-                training_mean_of_positives += _safe_count_tensor_division((predictions.data * multiclass_labels).sum(dim=0) , multiclass_labels.sum(dim=0))
-                training_mean_of_negatives += _safe_count_tensor_division((predictions.data * (1-multiclass_labels)).sum(dim=0) , (1-multiclass_labels).sum(dim=0))
-                assert ((0==(predictions.data * multiclass_labels).sum(dim=0)) == (0==multiclass_labels.sum(dim=0))).all()
-                assert ((0==(predictions.data * (1-multiclass_labels)).sum(dim=0)) == (0==(1-multiclass_labels).sum(dim=0))).all()
-                total_number_of_examples += text_lengths.shape[0]
-                assert not tensor_has_nan(training_mean_of_negatives)
-                assert not tensor_has_nan(training_mean_of_positives)
-            training_mean_of_positives /= total_number_of_examples
-            training_mean_of_negatives /= total_number_of_examples
+                if __debug__:
+                    batch_size = len(text_lengths)
+                assert tuple(predictions.data.shape) == (batch_size, self.output_size)
+                assert tuple(multiclass_labels.shape) == (batch_size, self.output_size)
+                
+                training_sum_of_positives += (predictions.data * multiclass_labels).sum(dim=0)
+                training_count_of_positives += multiclass_labels.sum(dim=0)
+                
+                training_sum_of_negatives += (predictions.data * (1-multiclass_labels)).sum(dim=0)
+                training_count_of_negatives += (1-multiclass_labels).sum(dim=0)
+
+                assert tuple(training_sum_of_positives.shape) == (self.output_size,)
+                assert tuple(training_count_of_positives.shape) == (self.output_size,)
+                assert tuple(training_sum_of_negatives.shape) == (self.output_size,)
+                assert tuple(training_count_of_negatives.shape) == (self.output_size,)
+                assert not tensor_has_nan(training_sum_of_positives)
+                assert not tensor_has_nan(training_count_of_positives)
+                assert not tensor_has_nan(training_sum_of_negatives)
+                assert not tensor_has_nan(training_count_of_negatives)
+
+            assert (0 != training_sum_of_positives).all()
+            assert (0 != training_count_of_positives).all()
+            assert (0 != training_sum_of_negatives).all()
+            assert (0 != training_count_of_negatives).all()
+            
+            training_mean_of_positives = training_sum_of_positives / training_count_of_positives
+            training_mean_of_negatives = training_sum_of_negatives / training_count_of_negatives
+            assert tuple(training_mean_of_positives.shape) == (self.output_size,)
+            assert tuple(training_mean_of_negatives.shape) == (self.output_size,)
+            assert not tensor_has_nan(training_sum_of_positives)
+            assert not tensor_has_nan(training_sum_of_negatives)
             self.f1_threshold = (training_mean_of_positives + training_mean_of_negatives) / 2.0
+            assert not tensor_has_nan(self.f1_threshold)
         return
     
     def reset_f1_threshold(self) -> None:
@@ -524,12 +537,18 @@ class EEAPClassifier():
         assert tuple(y.shape) == (batch_size, self.output_size)
         assert tuple(y_hat.shape) == (batch_size, self.output_size)
         y_hat_discretized = (y_hat > self.f1_threshold).int()
-        true_positive_count = ((y_hat_discretized == y) & y.bool()).float().sum(dim=1)
-        false_positive_count = ((y_hat_discretized != y) & y.bool()).float().sum(dim=1)
-        false_negative_count = ((y_hat_discretized != y) & ~y.bool()).float().sum(dim=1)
+        true_positive_count = ((y_hat_discretized == y) & y.bool()).float().sum(dim=0)
+        false_positive_count = ((y_hat_discretized != y) & ~y.bool()).float().sum(dim=0)
+        false_negative_count = ((y_hat_discretized != y) & y.bool()).float().sum(dim=0)
+        assert tuple(true_positive_count.shape) == (self.output_size,)
+        assert tuple(false_positive_count.shape) == (self.output_size,)
+        assert tuple(false_negative_count.shape) == (self.output_size,)
         recall = _safe_count_tensor_division(true_positive_count , true_positive_count + false_negative_count)
         precision = _safe_count_tensor_division(true_positive_count , true_positive_count + false_positive_count)
+        assert tuple(recall.shape) == (self.output_size,)
+        assert tuple(precision.shape) == (self.output_size,)
         f1 = _safe_count_tensor_division(2 * precision * recall , precision + recall)
+        assert tuple(f1.shape) == (self.output_size,)
         mean_f1 = torch.mean(f1).item()
         assert isinstance(mean_f1, float)
         return mean_f1
@@ -542,7 +561,6 @@ class EEAPClassifier():
         self.model.load_state_dict(torch.load(parameter_file_location))
         return
 
-    @debug_on_error # @todo get rid of this debug_on_error
     def classify_string(self, input_string: str) -> Set[str]:
         self.model.eval()
         tokenized = [token.text for token in self.text_field.tokenize(input_string)]
