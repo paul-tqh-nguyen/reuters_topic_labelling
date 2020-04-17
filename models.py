@@ -192,7 +192,7 @@ class AttentionLayers(nn.Module):
         return attended_batch
 
 class EEAPNetwork(nn.Module):
-    def __init__(self, vocab_size, embedding_size, encoding_hidden_size, number_of_encoding_layers, attention_intermediate_size, number_of_attention_heads, output_size, dropout_probability, pad_idx):
+    def __init__(self, vocab_size, embedding_size, encoding_hidden_size, number_of_encoding_layers, attention_intermediate_size, number_of_attention_heads, output_size, dropout_probability, pad_idx, unk_idx, initial_embedding_vectors):
         super().__init__()
         if __debug__:
             self.embedding_size = embedding_size
@@ -204,6 +204,9 @@ class EEAPNetwork(nn.Module):
             ("embedding_layer", nn.Embedding(vocab_size, embedding_size, padding_idx=pad_idx, max_norm=1.0)),
             ("dropout_layer", nn.Dropout(dropout_probability)),
         ]))
+        self.embedding_layers.embedding_layer.weight.data.copy_(initial_embedding_vectors)
+        self.embedding_layers.embedding_layer.weight.data[unk_idx] = torch.zeros(embedding_size)
+        self.embedding_layers.embedding_layer.weight.data[pad_idx] = torch.zeros(embedding_size)
         self.encoding_layers = nn.LSTM(embedding_size,
                                        encoding_hidden_size,
                                        num_layers=number_of_encoding_layers,
@@ -215,6 +218,7 @@ class EEAPNetwork(nn.Module):
             ("dropout_layer", nn.Dropout(dropout_probability)),
             ("sigmoid_layer", nn.Sigmoid()),
         ]))
+        self.to(DEVICE)
 
     def forward(self, text_batch, text_lengths):
         if __debug__:
@@ -247,6 +251,33 @@ class EEAPNetwork(nn.Module):
         
         return prediction
 
+# class ConvNetwork(nn.Module):
+#     def __init__(self, vocab_size, embedding_dim, n_filters, filter_sizes, output_dim, dropout, pad_idx):
+#         super().__init__()        
+#         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx = pad_idx)
+#         self.convs = nn.ModuleList([
+#                                     nn.Conv1d(in_channels = embedding_dim, 
+#                                               out_channels = n_filters, 
+#                                               kernel_size = fs)
+#                                     for fs in filter_sizes
+#                                     ])        
+#         self.fc = nn.Linear(len(filter_sizes) * n_filters, output_dim)
+#         self.dropout = nn.Dropout(dropout)
+        
+#     def forward(self, text):
+#         #text = [batch size, sent len]        
+#         embedded = self.embedding(text)
+#         #embedded = [batch size, sent len, emb dim]
+#         embedded = embedded.permute(0, 2, 1)
+#         #embedded = [batch size, emb dim, sent len]
+#         conved = [F.relu(conv(embedded)) for conv in self.convs]
+#         #conved_n = [batch size, n_filters, sent len - filter_sizes[n] + 1]
+#         pooled = [F.max_pool1d(conv, conv.shape[2]).squeeze(2) for conv in conved]
+#         #pooled_n = [batch size, n_filters]
+#         cat = self.dropout(torch.cat(pooled, dim = 1))
+#         #cat = [batch size, n_filters * len(filter_sizes)]
+#         return self.fc(cat)
+    
 ###############
 # Classifiers #
 ###############
@@ -550,11 +581,7 @@ class EEAPClassifier(Classifier):
         self.number_of_attention_heads = self.model_args['number_of_attention_heads']
         self.dropout_probability = self.model_args['dropout_probability']
         vocab_size = len(self.text_field.vocab)
-        self.model = EEAPNetwork(vocab_size, self.embedding_size, self.encoding_hidden_size, self.number_of_encoding_layers, self.attention_intermediate_size, self.number_of_attention_heads, self.output_size, self.dropout_probability, self.pad_idx)
-        self.model.embedding_layers.embedding_layer.weight.data.copy_(self.text_field.vocab.vectors)
-        self.model.embedding_layers.embedding_layer.weight.data[self.unk_idx] = torch.zeros(self.embedding_size)
-        self.model.embedding_layers.embedding_layer.weight.data[self.pad_idx] = torch.zeros(self.embedding_size)
-        self.model = self.model.to(DEVICE)
+        self.model = EEAPNetwork(vocab_size, self.embedding_size, self.encoding_hidden_size, self.number_of_encoding_layers, self.attention_intermediate_size, self.number_of_attention_heads, self.output_size, self.dropout_probability, self.pad_idx, self.unk_idx, self.text_field.vocab.vectors)
         self.optimizer = optim.Adam(self.model.parameters())
         self.loss_function = nn.BCELoss().to(DEVICE)
         # self.loss_function = soft_f1_loss # @todo see if we can get this working.
