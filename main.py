@@ -42,7 +42,7 @@ OUTPUT_DIR = './default_output/'
 
 def train_model() -> None:
     from models import EEAPClassifier
-    classifier = EEAPClassifier(NUMBER_OF_EPOCHS, BATCH_SIZE, TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION, MAX_VOCAB_SIZE, PRE_TRAINED_EMBEDDING_SPECIFICATION, ENCODING_HIDDEN_SIZE, NUMBER_OF_ENCODING_LAYERS, ATTENTION_INTERMEDIATE_SIZE, NUMBER_OF_ATTENTION_HEADS, DROPOUT_PROBABILITY, OUTPUT_DIR)
+    classifier = EEAPClassifier(OUTPUT_DIR, NUMBER_OF_EPOCHS, BATCH_SIZE, TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION, MAX_VOCAB_SIZE, PRE_TRAINED_EMBEDDING_SPECIFICATION, encoding_hidden_size=ENCODING_HIDDEN_SIZE, number_of_encoding_layers=NUMBER_OF_ENCODING_LAYERS, attention_intermediate_size=ATTENTION_INTERMEDIATE_SIZE, number_of_attention_heads=NUMBER_OF_ATTENTION_HEADS, dropout_probability=DROPOUT_PROBABILITY)
     classifier.train()
     return
 
@@ -75,19 +75,19 @@ def hyperparameter_search() -> None:
         if os.path.isfile(final_output_results_file):
             print(f'Skipping result generation for {final_output_results_file}.')
         else:
-            classifier = EEAPClassifier(number_of_epochs,
+            classifier = EEAPClassifier(output_directory,
+                                        number_of_epochs,
                                         batch_size,
                                         train_portion,
                                         validation_portion,
                                         testing_portion,
                                         max_vocab_size,
                                         pre_trained_embedding_specification,
-                                        encoding_hidden_size,
-                                        number_of_encoding_layers,
-                                        attention_intermediate_size_choices,
-                                        number_of_attention_heads_choices,
-                                        dropout_probability,
-                                        output_directory)
+                                        encoding_hidden_size=encoding_hidden_size,
+                                        number_of_encoding_layers=number_of_encoding_layers,
+                                        attention_intermediate_size_choices=attention_intermediate_size_choices,
+                                        number_of_attention_heads_choices=number_of_attention_heads_choices,
+                                        dropout_probability=dropout_probability)
             classifier.train()
     return
 

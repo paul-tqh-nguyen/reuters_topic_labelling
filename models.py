@@ -4,6 +4,7 @@
 """
 """
 
+# @todo abstract the contents of this file out
 # @todo fill in the top-level doc string
 # @todo add type declarations 
 # @todo verify that all the imported stuff is used
@@ -15,6 +16,7 @@
 import random
 import json
 import os
+from abc import ABC, abstractmethod
 from functools import reduce
 from typing import List, Tuple, Set, Callable
 from collections import OrderedDict
@@ -43,9 +45,9 @@ torch.backends.cudnn.benchmark = not __debug__
 NUMBER_OF_RELEVANT_RECENT_EPOCHS = 5
 MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET = float('inf') # 30_000_000
 
-##################
-# Helper Classes #
-##################
+####################
+# Helper Utilities #
+####################
 
 def tensor_has_nan(tensor: torch.Tensor) -> bool:
     return (tensor != tensor).any().item()
@@ -158,7 +160,7 @@ class AttentionLayers(nn.Module):
             ("attention_activation", nn.ReLU(True)),
             ("final_attention_layer", nn.Linear(attention_intermediate_size, number_of_attention_heads)),
             ("final_attention_dropout_layer", nn.Dropout(dropout_probability)),
-            ("softmax_layer", nn.Softmax(dim=0)), # @todo is this right? softmaxing along dim 0? URGENT
+            ("softmax_layer", nn.Softmax(dim=0)),
         ]))
     
     def forward(self, encoded_batch: torch.Tensor, text_lengths: torch.Tensor) -> torch.Tensor:
@@ -171,12 +173,12 @@ class AttentionLayers(nn.Module):
         for batch_index in range(batch_size):
             sentence_length = text_lengths[batch_index]
             sentence_matrix = encoded_batch[batch_index, :sentence_length, :]
-            assert encoded_batch[batch_index ,sentence_length:, :].data.sum() == 0
+            assert encoded_batch[batch_index, sentence_length:, :].data.sum() == 0
             assert tuple(sentence_matrix.shape) == (sentence_length, self.encoding_hidden_size*2)
 
             sentence_weights = self.attention_layers(sentence_matrix)
             assert tuple(sentence_weights.shape) == (sentence_length, self.number_of_attention_heads)
-            assert (sentence_weights.data.sum(dim=0)-1).abs().mean() < 1e-4 # @todo can se use math.isclose here?
+            assert (sentence_weights.data.sum(dim=0)-1).abs().mean() < 1e-4 # @todo can we use math.isclose here?
 
             weight_adjusted_sentence_matrix = torch.mm(sentence_matrix.t(), sentence_weights)
             assert tuple(weight_adjusted_sentence_matrix.shape) == (self.encoding_hidden_size*2, self.number_of_attention_heads,)
@@ -249,31 +251,29 @@ class EEAPNetwork(nn.Module):
 # Classifiers #
 ###############
 
-class EEAPClassifier():
-    def __init__(self, number_of_epochs: int, batch_size: int, train_portion: float, validation_portion: float, testing_portion: float, max_vocab_size: int, pre_trained_embedding_specification: str, encoding_hidden_size: int, number_of_encoding_layers: int, attention_intermediate_size: int, number_of_attention_heads: int, dropout_probability: float, output_directory: str):
+class Classifier(ABC):
+    def __init__(self, output_directory: str, number_of_epochs: int, batch_size: int, train_portion: float, validation_portion: float, testing_portion: float, max_vocab_size: int, pre_trained_embedding_specification: str, **kwargs):
         super().__init__()
         self.best_valid_loss = float('inf')
-
+        
+        self.model_args = kwargs
         self.number_of_epochs = number_of_epochs
         self.batch_size = batch_size
         self.max_vocab_size = max_vocab_size
         self.pre_trained_embedding_specification = pre_trained_embedding_specification
-        self.encoding_hidden_size = encoding_hidden_size
-        self.number_of_encoding_layers = number_of_encoding_layers
-        self.attention_intermediate_size = attention_intermediate_size
-        self.number_of_attention_heads = number_of_attention_heads
-        self.dropout_probability = dropout_probability
+        
         self.train_portion = train_portion
         self.validation_portion = validation_portion
         self.testing_portion = testing_portion
         
-        self.load_data()
-        self.reset_f1_threshold()
-        self.initialize_model()
         self.output_directory = output_directory
         if not os.path.exists(self.output_directory):
             os.makedirs(self.output_directory)
-
+            
+        self.load_data()
+        self.reset_f1_threshold()
+        self.initialize_model()
+        
     def load_data(self):
         self.text_field = data.Field(tokenize = 'spacy', include_lengths = True, batch_first = True)
         self.label_field = data.LabelField(dtype = torch.long)
@@ -322,19 +322,11 @@ class EEAPClassifier():
         tokens = reduce(set.union, (set(map(str,example.text)) for example in self.training_data))
         self.training_unk_words = set(eager_filter(is_unk_token, tokens))
         return
-        
+    
+    @abstractmethod
     def initialize_model(self) -> None:
-        vocab_size = len(self.text_field.vocab)
-        self.model = EEAPNetwork(vocab_size, self.embedding_size, self.encoding_hidden_size, self.number_of_encoding_layers, self.attention_intermediate_size, self.number_of_attention_heads, self.output_size, self.dropout_probability, self.pad_idx)
-        self.model.embedding_layers.embedding_layer.weight.data.copy_(self.text_field.vocab.vectors)
-        self.model.embedding_layers.embedding_layer.weight.data[self.unk_idx] = torch.zeros(self.embedding_size)
-        self.model.embedding_layers.embedding_layer.weight.data[self.pad_idx] = torch.zeros(self.embedding_size)
-        self.model = self.model.to(DEVICE)
-        self.optimizer = optim.Adam(self.model.parameters())
-        self.loss_function = nn.BCELoss().to(DEVICE)
-        # self.loss_function = soft_f1_loss # @todo see if we can get this working.
-        return
-
+        pass
+    
     def train_one_epoch(self) -> Tuple[float, float]:
         epoch_loss = 0
         epoch_f1 = 0
@@ -350,24 +342,8 @@ class EEAPClassifier():
             epoch_loss += loss.item()
             epoch_f1 += f1
         return epoch_loss / number_of_training_batches, epoch_f1 / number_of_training_batches
-
-    def evaluate(self, iterator, iterator_is_test_set) -> Tuple[float, float]:
-        print("Without optimization.")
-        epoch_loss = 0
-        epoch_f1 = 0
-        self.model.eval()
-        iterator_size = len(iterator)
-        with torch.no_grad():
-            for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'{"Testing" if iterator_is_test_set else "Validation"} F1 {epoch_f1/(index+1):.8f}', total=iterator_size, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
-                predictions = self.model(texts, text_lengths).squeeze(1)
-                loss = self.loss_function(predictions, multiclass_labels)
-                f1 = self.f1_score_of_discretized_values(predictions, multiclass_labels)
-                epoch_loss += loss.item()
-                epoch_f1 += f1
-        self.reset_f1_threshold()
-        
-        print("=" * 40) # Remove the above
-        
+    
+    def evaluate(self, iterator, iterator_is_test_set) -> Tuple[float, float]:        
         epoch_loss = 0
         epoch_f1 = 0
         self.model.eval()
@@ -382,10 +358,10 @@ class EEAPClassifier():
                 epoch_f1 += f1
         self.reset_f1_threshold()
         return epoch_loss / iterator_size, epoch_f1 / iterator_size
-
+    
     def validate(self) -> Tuple[float, float]:
         return self.evaluate(self.validation_iterator, False)
-
+    
     def test(self, epoch_index: int, result_is_from_final_run: bool) -> None:
         test_loss, test_f1 = self.evaluate(self.testing_iterator, True)
         print(f'\t  Test F1: {test_f1:.8f} |  Test Loss: {test_loss:.8f}')
@@ -404,11 +380,6 @@ class EEAPClassifier():
             'max_vocab_size': self.max_vocab_size,
             'vocab_size': len(self.text_field.vocab), 
             'pre_trained_embedding_specification': self.pre_trained_embedding_specification,
-            'encoding_hidden_size': self.encoding_hidden_size,
-            'number_of_encoding_layers': self.number_of_encoding_layers,
-            'attention_intermediate_size': self.attention_intermediate_size,
-            'number_of_attention_heads': self.number_of_attention_heads,
-            'dropout_probability': self.dropout_probability,
             'output_size': self.output_size,
             'train_portion': self.train_portion,
             'validation_portion': self.validation_portion,
@@ -417,6 +388,7 @@ class EEAPClassifier():
             'test_f1': test_f1,
             'test_loss': test_loss,
         }
+        self_score_dict.update(self.model_args)
         if log_current_model_as_best:
             with open('global_best_model_score.json', 'w') as outfile:
                 json.dump(self_score_dict, outfile)
@@ -458,8 +430,8 @@ class EEAPClassifier():
         self.test(epoch_index, True)
         os.remove(best_saved_model_location)
         return
-
-    def print_hyperparameters(self) -> None: # @todo redo these with all the updated parameters
+    
+    def print_hyperparameters(self) -> None:
         print()
         print(f"Model hyperparameters are:")
         print(f'        number_of_epochs: {self.number_of_epochs}')
@@ -467,21 +439,18 @@ class EEAPClassifier():
         print(f'        max_vocab_size: {self.max_vocab_size}')
         print(f'        vocab_size: {len(self.text_field.vocab)}')
         print(f'        pre_trained_embedding_specification: {self.pre_trained_embedding_specification}')
-        print(f'        encoding_hidden_size: {self.encoding_hidden_size}')
-        print(f'        number_of_encoding_layers: {self.number_of_encoding_layers}')
-        print(f'        attention_intermediate_size: {self.attention_intermediate_size}')
-        print(f'        number_of_attention_heads: {self.number_of_attention_heads}')
         print(f'        output_size: {self.output_size}')
-        print(f'        dropout_probability: {self.dropout_probability}')
         print(f'        output_directory: {self.output_directory}')
+        for model_arg_name, model_arg_value in sorted(self.model_args.items()):
+            print(f'        {model_arg_name}: {model_arg_value}')
         print()
         print(f'The model has {self.count_parameters()} trainable parameters.')
         print(f"This processes's PID is {os.getpid()}.")
         print()
-        
+    
     def count_parameters(self) -> int:
         return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
-
+    
     def optimize_f1_threshold(self) -> None:
         self.model.eval()
         with torch.no_grad():
@@ -502,7 +471,7 @@ class EEAPClassifier():
                 
                 training_sum_of_negatives += (predictions.data * (1-multiclass_labels)).sum(dim=0)
                 training_count_of_negatives += (1-multiclass_labels).sum(dim=0)
-
+                
                 assert tuple(training_sum_of_positives.shape) == (self.output_size,)
                 assert tuple(training_count_of_positives.shape) == (self.output_size,)
                 assert tuple(training_sum_of_negatives.shape) == (self.output_size,)
@@ -511,7 +480,7 @@ class EEAPClassifier():
                 assert not tensor_has_nan(training_count_of_positives)
                 assert not tensor_has_nan(training_sum_of_negatives)
                 assert not tensor_has_nan(training_count_of_negatives)
-
+                
             assert (0 != training_sum_of_positives).all()
             assert (0 != training_count_of_positives).all()
             assert (0 != training_sum_of_negatives).all()
@@ -552,7 +521,7 @@ class EEAPClassifier():
         mean_f1 = torch.mean(f1).item()
         assert isinstance(mean_f1, float)
         return mean_f1
-
+    
     def save_parameters(self, parameter_file_location: str) -> None:
         torch.save(self.model.state_dict(), parameter_file_location)
         return
@@ -560,7 +529,7 @@ class EEAPClassifier():
     def load_parameters(self, parameter_file_location: str) -> None:
         self.model.load_state_dict(torch.load(parameter_file_location))
         return
-
+    
     def classify_string(self, input_string: str) -> Set[str]:
         self.model.eval()
         tokenized = [token.text for token in self.text_field.tokenize(input_string)]
@@ -573,6 +542,24 @@ class EEAPClassifier():
         prediction = self.label_field.vocab.itos[prediction_as_index]
         return prediction
 
+class EEAPClassifier(Classifier):
+    def initialize_model(self) -> None:
+        self.encoding_hidden_size = self.model_args['encoding_hidden_size']
+        self.number_of_encoding_layers = self.model_args['number_of_encoding_layers']
+        self.attention_intermediate_size = self.model_args['attention_intermediate_size']
+        self.number_of_attention_heads = self.model_args['number_of_attention_heads']
+        self.dropout_probability = self.model_args['dropout_probability']
+        vocab_size = len(self.text_field.vocab)
+        self.model = EEAPNetwork(vocab_size, self.embedding_size, self.encoding_hidden_size, self.number_of_encoding_layers, self.attention_intermediate_size, self.number_of_attention_heads, self.output_size, self.dropout_probability, self.pad_idx)
+        self.model.embedding_layers.embedding_layer.weight.data.copy_(self.text_field.vocab.vectors)
+        self.model.embedding_layers.embedding_layer.weight.data[self.unk_idx] = torch.zeros(self.embedding_size)
+        self.model.embedding_layers.embedding_layer.weight.data[self.pad_idx] = torch.zeros(self.embedding_size)
+        self.model = self.model.to(DEVICE)
+        self.optimizer = optim.Adam(self.model.parameters())
+        self.loss_function = nn.BCELoss().to(DEVICE)
+        # self.loss_function = soft_f1_loss # @todo see if we can get this working.
+        return
+    
 ###############
 # Main Driver #
 ###############
