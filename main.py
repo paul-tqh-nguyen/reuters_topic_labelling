@@ -28,14 +28,14 @@ from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_mess
 
 from torch.nn.functional import max_pool1d
 
-NUMBER_OF_EPOCHS = 40
-BATCH_SIZE = 1
+NUMBER_OF_EPOCHS = 400000
+BATCH_SIZE = 64
 MAX_VOCAB_SIZE = 25_000
 TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION = (0.50, 0.20, 0.3)
 
 PRE_TRAINED_EMBEDDING_SPECIFICATION = 'glove.840B.300d'
 CONVOLUTION_HIDDEN_SIZE = 512
-KERNEL_SIZES = [3,4,5,6,7,8,9,10]
+KERNEL_SIZES = [3,4,5,6]
 POOLING_METHOD = max_pool1d
 DROPOUT_PROBABILITY = 0.5
 

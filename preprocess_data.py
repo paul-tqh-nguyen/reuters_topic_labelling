@@ -35,7 +35,7 @@ ALL_DATA_OUTPUT_CSV_FILE = os.path.join(PREPROCESSED_DATA_DIR, 'all_extracted_da
 TOPICS_DATA_OUTPUT_CSV_FILE = os.path.join(PREPROCESSED_DATA_DIR, 'topics_data.csv')
 
 COLUMNS_RELEVANT_TO_TOPICS_DATA = {'date', 'text_dateline', 'text_title', 'text', 'file', 'reuter_element_position'}
-MINIMUM_NUMBER_OF_SAMPLES_FOR_TOPIC = 10
+MINIMUM_NUMBER_OF_SAMPLES_FOR_TOPIC = 200
 
 #############################################################
 # Shorthand with Special Characters & Contraction Expansion #

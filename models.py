@@ -390,40 +390,56 @@ class Classifier(ABC):
     def train_one_epoch(self) -> Tuple[float, float]:
         epoch_loss = 0
         epoch_f1 = 0
+        epoch_recall = 0
+        epoch_precision = 0
         number_of_training_batches = len(self.training_iterator)
         self.model.train()
         for (texts, text_lengths), multiclass_labels in tqdm_with_message(self.training_iterator, post_yield_message_func = lambda index: f'Training F1 {epoch_f1/(index+1):.8f}', total=number_of_training_batches, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
             self.optimizer.zero_grad()
             predictions = self.model(texts, text_lengths)
             loss = self.loss_function(predictions, multiclass_labels)
-            f1 = self.f1_score_of_discretized_values(predictions, multiclass_labels)
+            f1, recall, precision = self.scores_of_discretized_values(predictions, multiclass_labels)
             loss.backward()
             self.optimizer.step()
             epoch_loss += loss.item()
             epoch_f1 += f1
-        return epoch_loss / number_of_training_batches, epoch_f1 / number_of_training_batches
+            epoch_recall += recall
+            epoch_precision += precision
+        epoch_loss /= number_of_training_batches
+        epoch_f1 /= number_of_training_batches
+        epoch_recall /= number_of_training_batches
+        epoch_precision /= number_of_training_batches
+        return epoch_loss, epoch_f1, epoch_recall, epoch_precision
     
-    def evaluate(self, iterator, iterator_is_test_set) -> Tuple[float, float]:        
+    def evaluate(self, iterator, iterator_is_test_set) -> Tuple[float, float]:
         epoch_loss = 0
         epoch_f1 = 0
+        epoch_recall = 0
+        epoch_precision = 0
         self.model.eval()
-        # self.optimize_f1_threshold() # @todo add this back in 
+        self.optimize_f1_threshold()
         iterator_size = len(iterator)
         with torch.no_grad():
             for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'{"Testing" if iterator_is_test_set else "Validation"} F1 {epoch_f1/(index+1):.8f}', total=iterator_size, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
                 predictions = self.model(texts, text_lengths).squeeze(1)
                 loss = self.loss_function(predictions, multiclass_labels)
-                f1 = self.f1_score_of_discretized_values(predictions, multiclass_labels)
+                f1, recall, precision = self.scores_of_discretized_values(predictions, multiclass_labels)
                 epoch_loss += loss.item()
                 epoch_f1 += f1
+                epoch_recall += recall
+                epoch_precision += precision
         self.reset_f1_threshold()
-        return epoch_loss / iterator_size, epoch_f1 / iterator_size
+        epoch_loss /= iterator_size
+        epoch_f1 /= iterator_size
+        epoch_recall /= iterator_size
+        epoch_precision /= iterator_size
+        return epoch_loss, epoch_f1, epoch_recall, epoch_precision
     
     def validate(self) -> Tuple[float, float]:
         return self.evaluate(self.validation_iterator, False)
     
     def test(self, epoch_index: int, result_is_from_final_run: bool) -> None:
-        test_loss, test_f1 = self.evaluate(self.testing_iterator, True)
+        test_loss, test_f1, test_recall, test_precision = self.evaluate(self.testing_iterator, True)
         print(f'\t  Test F1: {test_f1:.8f} |  Test Loss: {test_loss:.8f}')
         if not os.path.isfile('global_best_model_score.json'):
             log_current_model_as_best = True
@@ -447,6 +463,8 @@ class Classifier(ABC):
             'number_of_parameters': self.count_parameters(),
             'test_f1': test_f1,
             'test_loss': test_loss,
+            'test_recall': test_recall,
+            'test_precision': test_precision,
         }
         self_score_dict.update({(key, str(value)) for key, value in self.model_args.items()})
         if log_current_model_as_best:
@@ -470,10 +488,10 @@ class Classifier(ABC):
             print("\n\n\n")
             print(f"Epoch {epoch_index}")
             with timer(section_name=f"Epoch {epoch_index}"):
-                train_loss, train_f1 = self.train_one_epoch()
-                valid_loss, valid_f1 = self.validate()
-                print(f'\t Train F1: {train_f1:.8f} | Train Loss: {train_loss:.8f}')
-                print(f'\t  Val. F1: {valid_f1:.8f} |  Val. Loss: {valid_loss:.8f}')
+                train_loss, train_f1, train_recall, train_precision = self.train_one_epoch()
+                valid_loss, valid_f1, valid_recall, valid_precision = self.validate()
+                print(f'\t Train F1: {train_f1:.8f} | Train Recall: {train_recall:.8f} | Train Precision: {train_precision:.8f} | Train Loss: {train_loss:.8f}')
+                print(f'\t  Val. F1: {valid_f1:.8f} |  Val. Recall: {valid_recall:.8f} |  Val. Precision: {valid_precision:.8f} |  Val. Loss: {valid_loss:.8f}')
                 if valid_loss < self.best_valid_loss:
                     self.best_valid_loss = valid_loss
                     self.save_parameters(best_saved_model_location)
@@ -560,7 +578,7 @@ class Classifier(ABC):
         self.f1_threshold = torch.ones(self.output_size, dtype=float).to(DEVICE)*0.5
         return 
     
-    def f1_score_of_discretized_values(self, y_hat: torch.Tensor, y: torch.Tensor) -> float:
+    def scores_of_discretized_values(self, y_hat: torch.Tensor, y: torch.Tensor) -> float:
         batch_size = y.shape[0]
         assert batch_size <= self.batch_size
         assert tuple(y.shape) == (batch_size, self.output_size)
@@ -579,8 +597,13 @@ class Classifier(ABC):
         f1 = _safe_count_tensor_division(2 * precision * recall , precision + recall)
         assert tuple(f1.shape) == (self.output_size,)
         mean_f1 = torch.mean(f1).item()
+        mean_recall = torch.mean(recall).item()
+        mean_precision = torch.mean(precision).item()
         assert isinstance(mean_f1, float)
-        return mean_f1
+        assert isinstance(mean_recall, float)
+        assert isinstance(mean_precision, float)
+        assert mean_f1 == 0.0 or 0.0 not in (mean_recall, mean_precision)
+        return mean_f1, mean_recall, mean_precision
     
     def save_parameters(self, parameter_file_location: str) -> None:
         torch.save(self.model.state_dict(), parameter_file_location)
