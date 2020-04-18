@@ -27,6 +27,7 @@ from misc_utilites import eager_map, eager_filter, timer, tqdm_with_message, deb
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as F
 from torch.autograd import Variable
 import torchtext
 from torchtext import data
@@ -43,7 +44,7 @@ torch.backends.cudnn.deterministic = __debug__
 torch.backends.cudnn.benchmark = not __debug__
 
 NUMBER_OF_RELEVANT_RECENT_EPOCHS = 5
-MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET = float('inf') # 30_000_000
+MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET = float('inf') # 30_000_000 # @todo re-implement this
 
 ####################
 # Helper Utilities #
@@ -251,32 +252,60 @@ class EEAPNetwork(nn.Module):
         
         return prediction
 
-# class ConvNetwork(nn.Module):
-#     def __init__(self, vocab_size, embedding_dim, n_filters, filter_sizes, output_dim, dropout, pad_idx):
-#         super().__init__()        
-#         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx = pad_idx)
-#         self.convs = nn.ModuleList([
-#                                     nn.Conv1d(in_channels = embedding_dim, 
-#                                               out_channels = n_filters, 
-#                                               kernel_size = fs)
-#                                     for fs in filter_sizes
-#                                     ])        
-#         self.fc = nn.Linear(len(filter_sizes) * n_filters, output_dim)
-#         self.dropout = nn.Dropout(dropout)
+class ConvNetwork(nn.Module):
+    def __init__(self, vocab_size: int, embedding_size: int, convolution_hidden_size: int, kernel_sizes: List[int], pooling_method: Callable[[torch.Tensor], torch.Tensor], output_size: int, dropout_probability: float, pad_idx: int, unk_idx: int, initial_embedding_vectors): # @todo declare type of initial_embedding_vectors
+        super().__init__()
+        if __debug__:
+            self.embedding_size = embedding_size
+            self.convolution_hidden_size = convolution_hidden_size
+            self.kernel_sizes = kernel_sizes
+            self.output_size = output_size
+        self.embedding_layers = nn.Sequential(OrderedDict([
+            ("embedding_layer", nn.Embedding(vocab_size, embedding_size, padding_idx=pad_idx, max_norm=1.0)),
+            ("dropout_layer", nn.Dropout(dropout_probability)),
+        ]))
+        self.embedding_layers.embedding_layer.weight.data.copy_(initial_embedding_vectors)
+        self.embedding_layers.embedding_layer.weight.data[unk_idx] = torch.zeros(embedding_size)
+        self.embedding_layers.embedding_layer.weight.data[pad_idx] = torch.zeros(embedding_size)
+        self.convolutional_layers = nn.ModuleList([
+            nn.Conv1d(in_channels=embedding_size, out_channels=convolution_hidden_size, kernel_size=kernel_size)
+            for kernel_size in kernel_sizes # @todo add drop out here.
+        ])
+        self.pooling_method = pooling_method
+        self.prediction_layers = nn.Sequential(OrderedDict([
+            ("fully_connected_layers", nn.Linear(len(kernel_sizes) * convolution_hidden_size, output_size)),
+            ("dropout_layer", nn.Dropout(dropout_probability)),
+            ("sigmoid_layer", nn.Sigmoid()),
+        ]))
+        self.dropout_layers = nn.Dropout(dropout_probability)
+        self.to(DEVICE)
         
-#     def forward(self, text):
-#         #text = [batch size, sent len]        
-#         embedded = self.embedding(text)
-#         #embedded = [batch size, sent len, emb dim]
-#         embedded = embedded.permute(0, 2, 1)
-#         #embedded = [batch size, emb dim, sent len]
-#         conved = [F.relu(conv(embedded)) for conv in self.convs]
-#         #conved_n = [batch size, n_filters, sent len - filter_sizes[n] + 1]
-#         pooled = [F.max_pool1d(conv, conv.shape[2]).squeeze(2) for conv in conved]
-#         #pooled_n = [batch size, n_filters]
-#         cat = self.dropout(torch.cat(pooled, dim = 1))
-#         #cat = [batch size, n_filters * len(filter_sizes)]
-#         return self.fc(cat)
+    def forward(self, text_batch: torch.Tensor, text_lengths: torch.Tensor) -> torch.Tensor:
+        batch_size = text_lengths.shape[0]
+        max_sentence_length = text_batch.shape[1]
+        assert tuple(text_batch.shape) == (batch_size, max_sentence_length)
+        assert tuple(text_lengths.shape) == (batch_size,)
+        
+        embedded_batch = self.embedding_layers(text_batch)
+        assert tuple(embedded_batch.shape) == (batch_size, max_sentence_length, self.embedding_size)
+        embedded_batch = embedded_batch.permute(0, 2, 1)
+        assert tuple(embedded_batch.shape) == (batch_size, self.embedding_size, max_sentence_length)
+        
+        convolved_batches = [F.relu(conv(embedded_batch)) for conv in self.convolutional_layers]
+        assert reduce(bool.__and__, [tuple(convolved_batch.shape) == (batch_size, self.convolution_hidden_size, max_sentence_length-kernel_size+1)
+                                     for convolved_batch, kernel_size in zip(convolved_batches, self.kernel_sizes)])
+        
+        pooled_batches = [self.pooling_method(convolved_batch, kernel_size=convolved_batch.shape[2]).squeeze(2) for convolved_batch in convolved_batches]
+        assert reduce(bool.__and__, [tuple(pooled_batch.shape) == (batch_size, self.convolution_hidden_size) for pooled_batch in pooled_batches])
+        
+        concatenated_pooled_batches = torch.cat(pooled_batches, dim = 1)
+        concatenated_pooled_batches = self.dropout_layers(concatenated_pooled_batches)
+        assert tuple(concatenated_pooled_batches.shape) == (batch_size, self.convolution_hidden_size * len(self.kernel_sizes))
+
+        prediction = self.prediction_layers(concatenated_pooled_batches)
+        assert tuple(prediction.shape) == (batch_size, self.output_size)
+        
+        return prediction
     
 ###############
 # Classifiers #
@@ -378,7 +407,7 @@ class Classifier(ABC):
         epoch_loss = 0
         epoch_f1 = 0
         self.model.eval()
-        self.optimize_f1_threshold()
+        # self.optimize_f1_threshold() # @todo add this back in 
         iterator_size = len(iterator)
         with torch.no_grad():
             for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'{"Testing" if iterator_is_test_set else "Validation"} F1 {epoch_f1/(index+1):.8f}', total=iterator_size, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
@@ -419,7 +448,7 @@ class Classifier(ABC):
             'test_f1': test_f1,
             'test_loss': test_loss,
         }
-        self_score_dict.update(self.model_args)
+        self_score_dict.update({(key, str(value)) for key, value in self.model_args.items()})
         if log_current_model_as_best:
             with open('global_best_model_score.json', 'w') as outfile:
                 json.dump(self_score_dict, outfile)
@@ -584,9 +613,21 @@ class EEAPClassifier(Classifier):
         self.model = EEAPNetwork(vocab_size, self.embedding_size, self.encoding_hidden_size, self.number_of_encoding_layers, self.attention_intermediate_size, self.number_of_attention_heads, self.output_size, self.dropout_probability, self.pad_idx, self.unk_idx, self.text_field.vocab.vectors)
         self.optimizer = optim.Adam(self.model.parameters())
         self.loss_function = nn.BCELoss().to(DEVICE)
+        return
+
+class ConvClassifier(Classifier):
+    def initialize_model(self) -> None:
+        self.convolution_hidden_size = self.model_args['convolution_hidden_size']
+        self.kernel_sizes = self.model_args['kernel_sizes']
+        self.pooling_method = self.model_args['pooling_method']
+        self.dropout_probability = self.model_args['dropout_probability']
+        vocab_size = len(self.text_field.vocab)
+        self.model = ConvNetwork(vocab_size, self.embedding_size, self.convolution_hidden_size, self.kernel_sizes, self.pooling_method, self.output_size, self.dropout_probability, self.pad_idx, self.unk_idx, self.text_field.vocab.vectors)
+        self.optimizer = optim.Adam(self.model.parameters())
+        self.loss_function = nn.BCELoss().to(DEVICE)
         # self.loss_function = soft_f1_loss # @todo see if we can get this working.
         return
-    
+
 ###############
 # Main Driver #
 ###############

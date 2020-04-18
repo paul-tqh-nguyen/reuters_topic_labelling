@@ -26,23 +26,28 @@ from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_mess
 # Functionality #
 #################
 
+from torch.nn.functional import max_pool1d
+
 NUMBER_OF_EPOCHS = 40
 BATCH_SIZE = 1
 MAX_VOCAB_SIZE = 25_000
 TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION = (0.50, 0.20, 0.3)
 
 PRE_TRAINED_EMBEDDING_SPECIFICATION = 'glove.840B.300d'
-ENCODING_HIDDEN_SIZE = 512
-NUMBER_OF_ENCODING_LAYERS = 1
-ATTENTION_INTERMEDIATE_SIZE = 32
-NUMBER_OF_ATTENTION_HEADS = 2
-DROPOUT_PROBABILITY = 0.25
+CONVOLUTION_HIDDEN_SIZE = 512
+KERNEL_SIZES = [3,4,5,6,7,8,9,10]
+POOLING_METHOD = max_pool1d
+DROPOUT_PROBABILITY = 0.5
 
 OUTPUT_DIR = './default_output/'
 
 def train_model() -> None:
-    from models import EEAPClassifier
-    classifier = EEAPClassifier(OUTPUT_DIR, NUMBER_OF_EPOCHS, BATCH_SIZE, TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION, MAX_VOCAB_SIZE, PRE_TRAINED_EMBEDDING_SPECIFICATION, encoding_hidden_size=ENCODING_HIDDEN_SIZE, number_of_encoding_layers=NUMBER_OF_ENCODING_LAYERS, attention_intermediate_size=ATTENTION_INTERMEDIATE_SIZE, number_of_attention_heads=NUMBER_OF_ATTENTION_HEADS, dropout_probability=DROPOUT_PROBABILITY)
+    from models import ConvClassifier
+    classifier = ConvClassifier(OUTPUT_DIR, NUMBER_OF_EPOCHS, BATCH_SIZE, TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION, MAX_VOCAB_SIZE, PRE_TRAINED_EMBEDDING_SPECIFICATION,
+                                convolution_hidden_size=CONVOLUTION_HIDDEN_SIZE,
+                                kernel_sizes=KERNEL_SIZES,
+                                pooling_method=POOLING_METHOD,
+                                dropout_probability=DROPOUT_PROBABILITY)
     classifier.train()
     return
 
