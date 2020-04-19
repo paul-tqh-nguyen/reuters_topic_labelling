@@ -20,7 +20,7 @@ import math # @todo verify that this is used
 from statistics import mean
 from abc import ABC, abstractmethod
 from functools import reduce
-from typing import List, Tuple, Set, Callable
+from typing import List, Tuple, Set, Callable, Iterable
 from collections import OrderedDict
 
 import preprocess_data
@@ -47,7 +47,7 @@ torch.backends.cudnn.benchmark = not __debug__
 
 NUMBER_OF_RELEVANT_RECENT_EPOCHS = 5
 GOAL_NUMBER_OF_OVERSAMPLED_DATAPOINTS = 0
-PORTION_OF_WORDS_TO_CROP_TO_UNK_FOR_DATA_AUGMENTATION = 0.00
+PORTION_OF_WORDS_TO_CROP_TO_UNK_FOR_DATA_AUGMENTATION = 0.30
 
 ####################
 # Helper Utilities #
@@ -338,7 +338,69 @@ class ConvNetwork(nn.Module):
         assert tuple(prediction.shape) == (batch_size, self.output_size)
         
         return prediction
-    
+
+class DenseNetwork(nn.Module):
+    def __init__(self, vocab_size: int, embedding_size: int, dense_hidden_sizes: Iterable[int], output_size: int, dropout_probability: float, pad_idx: int, unk_idx: int, initial_embedding_vectors): # @todo declare type of initial_embedding_vectors
+        super().__init__()
+        self.max_sequence_length = dense_hidden_sizes[0]
+        if __debug__:
+            self.embedding_size = embedding_size
+            self.dense_hidden_sizes = dense_hidden_sizes
+            self.final_hidden_size = dense_hidden_sizes[-1]
+            self.output_size = output_size
+        self.embedding_layers = nn.Sequential(OrderedDict([
+            ("embedding_layer", nn.Embedding(vocab_size, embedding_size, padding_idx=pad_idx, max_norm=1.0)),
+            ("dropout_layer", nn.Dropout(dropout_probability)),
+        ]))
+        self.embedding_layers.embedding_layer.weight.data.copy_(initial_embedding_vectors)
+        self.embedding_layers.embedding_layer.weight.data[unk_idx] = torch.zeros(embedding_size)
+        self.embedding_layers.embedding_layer.weight.data[pad_idx] = torch.zeros(embedding_size)
+        
+        previous_dense_hidden_size = self.max_sequence_length
+        dense_layers_elements = OrderedDict()
+        for dense_hidden_size_index, dense_hidden_size in enumerate(dense_hidden_sizes[1:]):
+            linear_layer = nn.Linear(previous_dense_hidden_size*embedding_size, dense_hidden_size*embedding_size)
+            dropout_layer = nn.Dropout(dropout_probability)
+            activation_layer = nn.ReLU(True)
+            dense_layers_elements[f'linear_layer_{dense_hidden_size_index}'] = linear_layer
+            dense_layers_elements[f'dropout_layer_{dense_hidden_size_index}'] = dropout_layer
+            dense_layers_elements[f'relu_{dense_hidden_size_index}'] = activation_layer
+            previous_dense_hidden_size = dense_hidden_size
+        self.dense_layers = nn.Sequential(dense_layers_elements)
+        
+        self.prediction_layers = nn.Sequential(OrderedDict([
+            ("fully_connected_layers", nn.Linear(self.final_hidden_size*embedding_size, output_size)),
+            ("dropout_layer", nn.Dropout(dropout_probability)),
+            ("sigmoid_layer", nn.Sigmoid()),
+        ]))
+        self.to(DEVICE)
+        
+    def forward(self, text_batch: torch.Tensor, text_lengths: torch.Tensor) -> torch.Tensor:
+        batch_size = text_lengths.shape[0]
+        text_batch_max_sentence_length = text_batch.shape[1]
+        assert tuple(text_batch.shape) == (batch_size, text_batch_max_sentence_length)
+        assert tuple(text_lengths.shape) == (batch_size,)
+        
+        if text_batch_max_sentence_length > self.max_sequence_length:
+            size_adjusted_text_batch = text_batch[:, :self.max_sequence_length]
+        elif text_batch_max_sentence_length < self.max_sequence_length:
+            size_adjusted_text_batch = torch.zeros(batch_size, self.max_sequence_length, dtype=text_batch.dtype).to(text_batch.device)
+            size_adjusted_text_batch[:, :text_batch_max_sentence_length] = text_batch
+        else:
+            size_adjusted_text_batch = text_batch
+        
+        embedded_batch = self.embedding_layers(size_adjusted_text_batch)
+        embedded_batch = embedded_batch.view(batch_size, -1)
+        assert tuple(embedded_batch.shape) == (batch_size, self.max_sequence_length*self.embedding_size)
+        
+        encoded_batch = self.dense_layers(embedded_batch)
+        assert tuple(encoded_batch.shape) == (batch_size, self.final_hidden_size*self.embedding_size)
+
+        prediction = self.prediction_layers(encoded_batch)
+        assert tuple(prediction.shape) == (batch_size, self.output_size)
+        
+        return prediction
+
 ###############
 # Classifiers #
 ###############
@@ -480,7 +542,7 @@ class Classifier(ABC):
     
     def test(self, epoch_index: int, result_is_from_final_run: bool) -> None:
         test_loss, test_f1, test_recall, test_precision = self.evaluate(self.testing_iterator, True)
-        print(f'\t  Test F1: {test_f1:.8f} |  Test Loss: {test_loss:.8f}')
+        print(f'\t  Test F1: {test_f1:.8f} |  Test Recall: {test_recall:.8f} |  Test Precision: {test_precision:.8f} |  Test Loss: {test_loss:.8f}')
         if not os.path.isfile('global_best_model_score.json'):
             log_current_model_as_best = True
         else:
@@ -688,7 +750,18 @@ class ConvClassifier(Classifier):
         vocab_size = len(self.text_field.vocab)
         self.model = ConvNetwork(vocab_size, self.embedding_size, self.convolution_hidden_size, self.kernel_sizes, self.pooling_method, self.output_size, self.dropout_probability, self.pad_idx, self.unk_idx, self.text_field.vocab.vectors)
         self.optimizer = optim.Adam(self.model.parameters())
-        self.loss_function = lambda y_hat, y: nn.BCELoss().to(DEVICE)(y_hat, y)
+        self.loss_function = nn.BCELoss().to(DEVICE)
+        return
+
+class DenseClassifier(Classifier):
+    def initialize_model(self) -> None:
+        self.dense_hidden_sizes = self.model_args['dense_hidden_sizes']
+        self.dropout_probability = self.model_args['dropout_probability']
+        vocab_size = len(self.text_field.vocab)
+        self.model = DenseNetwork(vocab_size, self.embedding_size, self.dense_hidden_sizes, self.output_size, self.dropout_probability, self.pad_idx, self.unk_idx, self.text_field.vocab.vectors)
+        self.optimizer = optim.Adam(self.model.parameters())
+        BCE_loss_function = nn.BCELoss().to(DEVICE)
+        self.loss_function = lambda y_hat, y: BCE_loss_function(y_hat, y) + soft_f1_loss(y_hat, y)
         return
 
 ###############

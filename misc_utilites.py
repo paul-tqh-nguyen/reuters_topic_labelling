@@ -65,6 +65,16 @@ def histogram(iterator: Iterable) -> Counter:
     return counter
 
 @contextmanager
+def safe_cuda_memory():
+    try:
+        yield
+    except RuntimeError as err:
+        if 'CUDA out of memory' not in str(err):
+            raise
+        else:
+            print("CUDA ran out of memory.")
+
+@contextmanager
 def timer(section_name: str = None, exitCallback: Callable[[], None] = None):
     start_time = time.time()
     yield
