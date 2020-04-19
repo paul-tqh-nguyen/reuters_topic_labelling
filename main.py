@@ -52,35 +52,41 @@ def train_model() -> None:
     return
 
 def hyperparameter_search() -> None:
-    from models import EEAPClassifier
+    from models import ConvClassifier
     
-    number_of_epochs = 40
-    batch_size = 1
+    number_of_epochs = 100
+    batch_size = 64
     train_portion, validation_portion, testing_portion = (0.50, 0.20, 0.3)
     
     max_vocab_size_choices = [10_000, 25_000, 50_000]
     pre_trained_embedding_specification_choices = ['charngram.100d', 'fasttext.en.300d', 'fasttext.simple.300d', 'glove.42B.300d', 'glove.840B.300d', 'glove.twitter.27B.25d', 'glove.twitter.27B.50d', 'glove.twitter.27B.100d', 'glove.twitter.27B.200d', 'glove.6B.50d', 'glove.6B.100d', 'glove.6B.200d', 'glove.6B.300d']
-    encoding_hidden_size_choices = [128, 256, 512]
-    number_of_encoding_layers_choices = [1, 2]
-    attention_intermediate_size_choices = [4, 16, 32]
-    number_of_attention_heads_choices = [1, 2, 4, 32]
-    dropout_probability_choices = [0.0, 0.25, 0.5]
 
+    convolution_hidden_size_choices = [64, 128, 256, 512]
+    pooling_method_choices = [max_pool1d, avg_pool1d, lp_pool1d, adaptive_avg_pool1d, adaptive_max_pool1d]
+    kernel_sizes_choices = [
+        [2],
+        [2,3],
+        [2,3,4],
+        [2,3,4,5],
+        [2,3,4,5,6],
+        [3,6],
+    ]
+    dropout_probability_choices = [0.0, 0.25, 0.5]
+    
     hyparameter_list_choices = list(itertools.product(max_vocab_size_choices,
                                                       pre_trained_embedding_specification_choices,
-                                                      encoding_hidden_size_choices,
-                                                      number_of_encoding_layers_choices,
-                                                      attention_intermediate_size_choices,
-                                                      number_of_attention_heads_choices,
+                                                      convolution_hidden_size_choices,
+                                                      pooling_method_choices,
+                                                      kernel_sizes_choices,
                                                       dropout_probability_choices))
     random.shuffle(hyparameter_list_choices)
-    for (max_vocab_size, pre_trained_embedding_specification, encoding_hidden_size, number_of_encoding_layers, attention_intermediate_size_choices, number_of_attention_heads_choices, dropout_probability) in hyparameter_list_choices:
-        output_directory = f'./results/epochs_{number_of_epochs}_batch_size_{batch_size}_train_frac_{train_portion}_validation_frac_{validation_portion}_testing_frac_{testing_portion}_max_vocab_{max_vocab_size}_embed_spec_{pre_trained_embedding_specification}_encoding_size_{encoding_hidden_size}_numb_encoding_layers_{number_of_encoding_layers}_attn_intermediate_size_{attention_intermediate_size_choices}_num_attn_heads_{number_of_attention_heads_choices}_dropout_{dropout_probability}'
+    for (max_vocab_size, pre_trained_embedding_specification, convolution_hidden_size, pooling_method, kernel_sizes, dropout_probability) in hyparameter_list_choices:
+        output_directory = f'./results/epochs_{number_of_epochs}_batch_size_{batch_size}_train_frac_{train_portion}_validation_frac_{validation_portion}_testing_frac_{testing_portion}_max_vocab_{max_vocab_size}_embed_spec_{pre_trained_embedding_specification}_conv_size_{convolution_hidden_size}_pool_{pooling_method.__name__ if hasattr(pooling_method, "__name__") else str(pooling_method)}_kernel_sizes_{str(kernel_sizes).replace(" ","")}_dropout_{dropout_probability}'
         final_output_results_file = os.path.join(output_directory, 'final_model_score.json')
         if os.path.isfile(final_output_results_file):
             print(f'Skipping result generation for {final_output_results_file}.')
         else:
-            classifier = EEAPClassifier(output_directory,
+            classifier = ConvClassifier(output_directory,
                                         number_of_epochs,
                                         batch_size,
                                         train_portion,
@@ -88,10 +94,9 @@ def hyperparameter_search() -> None:
                                         testing_portion,
                                         max_vocab_size,
                                         pre_trained_embedding_specification,
-                                        encoding_hidden_size=encoding_hidden_size,
-                                        number_of_encoding_layers=number_of_encoding_layers,
-                                        attention_intermediate_size_choices=attention_intermediate_size_choices,
-                                        number_of_attention_heads_choices=number_of_attention_heads_choices,
+                                        convolution_hidden_size=convolution_hidden_size,
+                                        pooling_method=pooling_method,
+                                        kernel_sizes=kernel_sizes,
                                         dropout_probability=dropout_probability)
             classifier.train()
     return

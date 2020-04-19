@@ -561,7 +561,7 @@ class Classifier(ABC):
         print(f'        output_size: {self.output_size}')
         print(f'        output_directory: {self.output_directory}')
         for model_arg_name, model_arg_value in sorted(self.model_args.items()):
-            print(f'        {model_arg_name}: {model_arg_value}')
+            print(f'        {model_arg_name}: {model_arg_value.__name__ if hasattr(model_arg_value, "__name__") else str(model_arg_value)}')
         print()
         print(f'The model has {self.count_parameters()} trainable parameters.')
         print(f"This processes's PID is {os.getpid()}.")
