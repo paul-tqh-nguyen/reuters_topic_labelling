@@ -21,10 +21,11 @@ Sections:
 import os
 import bs4
 import re
+import itertools
 import nltk
 import pandas as pd
 from typing import Iterable, Tuple
-from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_message
+from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_message, parallel_map, timer
 
 ###########
 # Globals #
@@ -38,6 +39,7 @@ TOPICS_DATA_OUTPUT_CSV_FILE = os.path.join(PREPROCESSED_DATA_DIR, 'topics_data.c
 COLUMNS_RELEVANT_TO_TOPICS_DATA = {'date', 'text_dateline', 'text_title', 'text', 'file', 'reuter_element_position'}
 MINIMUM_NUMBER_OF_SAMPLES_FOR_TOPIC = 200
 STOPWORDS = nltk.corpus.stopwords.words('english')
+NUMBER_TOKEN = "<NUMBER>"
 
 #############################################################
 # Shorthand with Special Characters & Contraction Expansion #
@@ -191,13 +193,10 @@ def pervasively_replace(input_string: str, old: str, new: str) -> str:
         input_string = input_string.replace(old, new)
     return input_string
 
-def expand_digits(input_string: str) -> str:
+def process_digits(input_string: str) -> str:
     output_string = input_string
-    for numeric_character in '0123456789':
-        output_string = output_string.replace(numeric_character, ' '+numeric_character+' ')
-    for match in re.finditer(r" -[A-Za-z]+", output_string):
-        match_string = match.group()
-        output_string = output_string.replace(match_string, ' '+match_string[2:])
+    output_string = re.sub(r'[0-9]+', ' <NUMBER> ', output_string)
+    assert 10 == sum(map(int, (digit not in output_string for digit in '1234567890')))
     return output_string
 
 def remove_white_space_characters(input_string: str) -> str:
@@ -227,12 +226,12 @@ def dwim_weird_characters(input_string: str) -> str:
 def preprocess_text_element_body_text(input_string: str) -> str:
     output_string = input_string
     output_string = output_string.lower()
+    output_string = dwim_weird_characters(output_string)
     output_string = pervasively_replace(output_string, '....','...') # @todo do we want to preprocess these more intelligently or have the model learn it?
-    output_string = expand_digits(output_string)
+    output_string = process_digits(output_string)
     output_string = expand_contractions_and_shorthand_words_with_special_characters(output_string)
     output_string = remove_white_space_characters(output_string)
     output_string = remove_stop_words(output_string)
-    output_string = dwim_weird_characters(output_string)
     return output_string
 
 ################################
@@ -252,60 +251,67 @@ def gather_sgm_files() -> Iterable[str]:
     sgm_files = map(lambda sgm_file_name: os.path.join(DATA_DIRECTORY, sgm_file_name), filter(lambda entry: '.' in entry and entry.split('.')[-1]=='sgm', all_data_entries))
     return sgm_files
 
+def extract_csv_rows_from_sgm_file(sgm_file: str) -> Tuple[dict, dict]:
+    all_rows = []
+    topics_rows = []
+    with open(sgm_file, 'rb') as sgm_text:
+        soup = bs4.BeautifulSoup(sgm_text,'html.parser')
+        reuters_elements = soup.find_all('reuters')
+        for row_index, reuters_element in enumerate(reuters_elements):
+            get_element_text = lambda element: element.text
+            text_element = at_most_one(reuters_element.find_all('text'))
+            text_element_title = at_most_one(text_element.find_all('title'))
+            text_element_dateline = at_most_one(text_element.find_all('dateline'))
+            text_element_body = at_most_one(text_element.find_all('body'))
+            text_element_body_text = preprocess_text_element_body_text(text_element_body.text) if text_element_body else None
+            if not text_element_body_text or len(text_element_body_text)==0:
+                continue
+            date_element = at_most_one(reuters_element.find_all('date'))
+            topics_element = at_most_one(reuters_element.find_all('topics'))
+            topic_elements = topics_element.find_all('d')
+            topics: List[str] = eager_map(get_element_text, topic_elements)
+            places_element = at_most_one(reuters_element.find_all('places'))
+            place_elements = places_element.find_all('d')
+            people_element = at_most_one(reuters_element.find_all('people'))
+            person_elements = people_element.find_all('d')
+            orgs_element = at_most_one(reuters_element.find_all('orgs'))
+            org_elements = orgs_element.find_all('d')
+            exchanges_element = at_most_one(reuters_element.find_all('exchanges'))
+            exchange_elements = exchanges_element.find_all('d')
+            companies_element = at_most_one(reuters_element.find_all('companies'))
+            company_elements = companies_element.find_all('d')
+            unknown_elements = reuters_element.find_all('unknown')
+            
+            all_data_row = {
+                'date': date_element.text.strip(),
+                'topics_raw_string': topics,
+                'places': eager_map(get_element_text, place_elements),
+                'people': eager_map(get_element_text, person_elements),
+                'orgs': eager_map(get_element_text, org_elements),
+                'exchanges': eager_map(get_element_text, exchange_elements),
+                'companies': eager_map(get_element_text, company_elements),
+                'unknown': eager_map(get_element_text, unknown_elements),
+                'text_title': text_element_title.text if text_element_title else None,
+                'text_dateline': text_element_dateline.text if text_element_dateline else None,
+                'text': text_element_body_text,
+                'file': sgm_file,
+                'reuter_element_position': row_index,
+            }
+            all_rows.append(all_data_row)
+            
+            if len(topics) > 0:
+                topic_row = {column_name:all_data_row[column_name] for column_name in COLUMNS_RELEVANT_TO_TOPICS_DATA}
+                topic_row.update({topic: True for topic in topics})
+                topics_rows.append(topic_row)
+    return all_rows, topics_rows
+
 def parse_sgm_files() -> Tuple[pd.DataFrame, pd.DataFrame]:
-    all_rows: List[dict] = []
-    topics_rows: List[dict] = []
-    for sgm_file in gather_sgm_files(): # @todo parallelize this
-        with open(sgm_file, 'rb') as sgm_text:
-            soup = bs4.BeautifulSoup(sgm_text,'html.parser')
-            reuters_elements = soup.find_all('reuters')
-            for row_index, reuters_element in enumerate(tqdm_with_message(reuters_elements, pre_yield_message_func=lambda index: f'Processing {sgm_file}', bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}')):
-                get_element_text = lambda element: element.text
-                text_element = at_most_one(reuters_element.find_all('text'))
-                text_element_title = at_most_one(text_element.find_all('title'))
-                text_element_dateline = at_most_one(text_element.find_all('dateline'))
-                text_element_body = at_most_one(text_element.find_all('body'))
-                text_element_body_text = preprocess_text_element_body_text(text_element_body.text) if text_element_body else None
-                if not text_element_body_text or len(text_element_body_text)==0:
-                    continue
-                date_element = at_most_one(reuters_element.find_all('date'))
-                topics_element = at_most_one(reuters_element.find_all('topics'))
-                topic_elements = topics_element.find_all('d')
-                topics: List[str] = eager_map(get_element_text, topic_elements)
-                places_element = at_most_one(reuters_element.find_all('places'))
-                place_elements = places_element.find_all('d')
-                people_element = at_most_one(reuters_element.find_all('people'))
-                person_elements = people_element.find_all('d')
-                orgs_element = at_most_one(reuters_element.find_all('orgs'))
-                org_elements = orgs_element.find_all('d')
-                exchanges_element = at_most_one(reuters_element.find_all('exchanges'))
-                exchange_elements = exchanges_element.find_all('d')
-                companies_element = at_most_one(reuters_element.find_all('companies'))
-                company_elements = companies_element.find_all('d')
-                unknown_elements = reuters_element.find_all('unknown')
-                
-                all_data_row = {
-                    'date': date_element.text.strip(),
-                    'topics_raw_string': topics,
-                    'places': eager_map(get_element_text, place_elements),
-                    'people': eager_map(get_element_text, person_elements),
-                    'orgs': eager_map(get_element_text, org_elements),
-                    'exchanges': eager_map(get_element_text, exchange_elements),
-                    'companies': eager_map(get_element_text, company_elements),
-                    'unknown': eager_map(get_element_text, unknown_elements),
-                    'text_title': text_element_title.text if text_element_title else None,
-                    'text_dateline': text_element_dateline.text if text_element_dateline else None,
-                    'text': text_element_body_text,
-                    'file': sgm_file,
-                    'reuter_element_position': row_index,
-                }
-                all_rows.append(all_data_row)
-                
-                if len(topics) > 0:
-                    topic_row = {column_name:all_data_row[column_name] for column_name in COLUMNS_RELEVANT_TO_TOPICS_DATA}
-                    topic_row.update({topic: True for topic in topics})
-                    topics_rows.append(topic_row)
-                    
+    with timer(section_name="Parsing of .sgm files"):
+        print("Parsing .sgm files.")
+        all_rows_pieces, topics_rows_pieces = zip(*parallel_map(extract_csv_rows_from_sgm_file, gather_sgm_files()))
+        print("Parsing of .sgm files complete.")
+    all_rows = itertools.chain(*all_rows_pieces)
+    topics_rows = itertools.chain(*topics_rows_pieces)
     all_df = pd.DataFrame(all_rows)
     topics_df = pd.DataFrame(topics_rows)
     topics_df = delete_topics_with_insufficient_data(topics_df)

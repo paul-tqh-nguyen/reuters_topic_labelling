@@ -42,6 +42,7 @@ def at_most_one(items: List):
     return only_one(items) if items else None
 
 def parallel_map(func: Callable, iterable: Iterable) -> List:
+    import multiprocessing
     p = multiprocessing.Pool()
     result = p.map(func, iterable)
     p.close()
@@ -72,7 +73,7 @@ def timer(section_name: str = None, exitCallback: Callable[[], None] = None):
     if exitCallback != None:
         exitCallback(elapsed_time)
     elif section_name:
-        print(f'{section_name} took {elapsed_time} seconds.')
+        print(f'{section_name.strip()} took {elapsed_time} seconds.')
     else:
         print(f'Execution took {elapsed_time} seconds.')
 
