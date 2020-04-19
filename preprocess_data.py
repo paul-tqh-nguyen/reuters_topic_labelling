@@ -21,6 +21,7 @@ Sections:
 import os
 import bs4
 import re
+import nltk
 import pandas as pd
 from typing import Iterable, Tuple
 from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_message
@@ -36,6 +37,7 @@ TOPICS_DATA_OUTPUT_CSV_FILE = os.path.join(PREPROCESSED_DATA_DIR, 'topics_data.c
 
 COLUMNS_RELEVANT_TO_TOPICS_DATA = {'date', 'text_dateline', 'text_title', 'text', 'file', 'reuter_element_position'}
 MINIMUM_NUMBER_OF_SAMPLES_FOR_TOPIC = 200
+STOPWORDS = nltk.corpus.stopwords.words('english')
 
 #############################################################
 # Shorthand with Special Characters & Contraction Expansion #
@@ -206,6 +208,13 @@ def remove_white_space_characters(input_string: str) -> str:
     output_string = output_string.strip()
     return output_string
 
+def remove_stop_words(input_string: str) -> str:
+    output_string = input_string
+    output_string = output_string.split(' ')
+    output_string = ' '.join(filter(lambda word: word not in STOPWORDS, output_string))
+    output_string = remove_white_space_characters(output_string)
+    return output_string
+
 def dwim_weird_characters(input_string: str) -> str:
     output_string = input_string
     output_string = pervasively_replace(output_string, chr(3),'')
@@ -222,6 +231,7 @@ def preprocess_text_element_body_text(input_string: str) -> str:
     output_string = expand_digits(output_string)
     output_string = expand_contractions_and_shorthand_words_with_special_characters(output_string)
     output_string = remove_white_space_characters(output_string)
+    output_string = remove_stop_words(output_string)
     output_string = dwim_weird_characters(output_string)
     return output_string
 

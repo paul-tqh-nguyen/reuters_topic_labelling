@@ -28,7 +28,7 @@ from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_mess
 
 from torch.nn.functional import max_pool1d
 
-NUMBER_OF_EPOCHS = 400000
+NUMBER_OF_EPOCHS = 40
 BATCH_SIZE = 64
 MAX_VOCAB_SIZE = 25_000
 TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION = (0.50, 0.20, 0.3)

@@ -16,13 +16,15 @@
 import random
 import json
 import os
+import math # @todo verify that this is used
+from statistics import mean
 from abc import ABC, abstractmethod
 from functools import reduce
 from typing import List, Tuple, Set, Callable
 from collections import OrderedDict
 
 import preprocess_data
-from misc_utilites import eager_map, eager_filter, timer, tqdm_with_message, debug_on_error, dpn, dpf # @todo get rid of debug_on_error
+from misc_utilites import eager_map, eager_filter, timer, histogram, tqdm_with_message, debug_on_error, current_tensors, dpn, dpf # @todo get rid of debug_on_error
 
 import torch
 import torch.nn as nn
@@ -44,7 +46,7 @@ torch.backends.cudnn.deterministic = __debug__
 torch.backends.cudnn.benchmark = not __debug__
 
 NUMBER_OF_RELEVANT_RECENT_EPOCHS = 5
-MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET = float('inf') # 30_000_000 # @todo re-implement this
+GOAL_NUMBER_OF_OVERSAMPLED_DATAPOINTS = 0
 
 ####################
 # Helper Utilities #
@@ -105,7 +107,6 @@ def normalize_occurences(unnormalized_occurences: torch.Tensor) -> torch.Tensor:
 
 def _sanity_check_discrete_occurences(discrete_occurences: torch.Tensor, original_labels_matrix: torch.Tensor, example_numericalized_labels: Callable[[torchtext.data.example.Example], torch.Tensor], dataset: torchtext.data.dataset.Dataset) -> None:
     if __debug__:
-        from statistics import mean
         label_to_index_and_example_pairs_map = dict()
         for example_index, (label_tensor, example) in enumerate(zip(original_labels_matrix, dataset)):
             label = tuple(eager_map(torch.Tensor.item, label_tensor))
@@ -122,21 +123,39 @@ def _sanity_check_discrete_occurences(discrete_occurences: torch.Tensor, origina
     return
 
 def balance_dataset_wrt_chi_squared_test(dataset: torchtext.data.dataset.Dataset, example_numericalized_labels: Callable[[torchtext.data.example.Example], torch.Tensor]) -> torchtext.data.dataset.Dataset:
-    original_labels_matrix = torch.stack([example_numericalized_labels(example) for example in dataset]).to(DEVICE)
-    occurences = nn.Parameter(torch.ones([len(dataset),1], dtype=float).to(DEVICE))
-    optimizer = optim.Adam([occurences])
-    loss = float('inf')
-    if loss <= MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET:
+    if GOAL_NUMBER_OF_OVERSAMPLED_DATAPOINTS == 0:
         oversampled_dataset = dataset
-    else:
-        while loss > MINIMUM_CHI_SQUARED_THRESHOLD_FOR_BALANCING_DATA_SET:
+    else: # @todo this causes a GPU memory leak
+        original_labels_matrix = torch.stack([example_numericalized_labels(example) for example in dataset]).to(DEVICE)
+        occurences = nn.Parameter(math.log(GOAL_NUMBER_OF_OVERSAMPLED_DATAPOINTS / len(dataset)) * torch.ones([len(dataset),1], dtype=float).to(DEVICE))
+        optimizer = optim.Adam([occurences])
+        count = 0
+        number_of_recent_losses_relevant_to_convergence = 10
+        most_recent_losses_via_chi_squared = [1e99]*number_of_recent_losses_relevant_to_convergence
+        chi_squared_threshold = 1
+        loss_via_chi_squared_is_sufficiently_low = False
+        minimum_distance_for_convergence = 1e-6
+        convergence_reached = False
+        while not convergence_reached and not loss_via_chi_squared_is_sufficiently_low:
             optimizer.zero_grad()
             normalized_occurences = normalize_occurences(occurences)
             total_histogram = (original_labels_matrix * normalized_occurences).sum(dim=0)
-            loss = chi_squared_loss(total_histogram)
+            loss_via_chi_squared = chi_squared_loss(total_histogram)
+
+            number_of_oversampled_datapoints = normalized_occurences.sum(dim=0) - len(dataset)
+            loss_via_number_of_samples_from_goal = (number_of_oversampled_datapoints - GOAL_NUMBER_OF_OVERSAMPLED_DATAPOINTS) ** 2
+            
+            loss = loss_via_chi_squared + loss_via_number_of_samples_from_goal
             loss.backward()
             optimizer.step()
-        discrete_occurences = normalized_occurences.int().detach()
+            
+            discrete_occurences = normalized_occurences.detach().round().int()
+            discrete_number_of_oversampled_datapoints = discrete_occurences.sum(dim=0).item() - len(dataset)
+
+            loss_via_chi_squared_is_sufficiently_low = loss_via_chi_squared.item() < chi_squared_threshold
+            convergence_reached = abs(loss_via_chi_squared.item() - mean(most_recent_losses_via_chi_squared)) < minimum_distance_for_convergence
+            most_recent_losses_via_chi_squared.pop(0)
+            most_recent_losses_via_chi_squared.append(loss_via_chi_squared.item())
         _sanity_check_discrete_occurences(discrete_occurences, original_labels_matrix, example_numericalized_labels, dataset)
         oversampled_examples = []
         for example, example_number_of_occurences in zip(dataset, discrete_occurences):
@@ -372,7 +391,8 @@ class Classifier(ABC):
     
     def balance_training_data(self) -> None:
         example_numericalized_labels = lambda example: torch.tensor([bool(getattr(example, topic)) for topic in self.topics], dtype=int)
-        self.training_data = balance_dataset_wrt_chi_squared_test(self.training_data, example_numericalized_labels)
+        with timer("Dataset balancing"):
+            self.training_data = balance_dataset_wrt_chi_squared_test(self.training_data, example_numericalized_labels)
         return
     
     def determine_training_unknown_words(self) -> None:
@@ -485,7 +505,7 @@ class Classifier(ABC):
         most_recent_validation_f1_scores = [0]*NUMBER_OF_RELEVANT_RECENT_EPOCHS
         print(f'Starting training')
         for epoch_index in range(self.number_of_epochs):
-            print("\n\n\n")
+            print("\n")
             print(f"Epoch {epoch_index}")
             with timer(section_name=f"Epoch {epoch_index}"):
                 train_loss, train_f1, train_recall, train_precision = self.train_one_epoch()
@@ -496,6 +516,7 @@ class Classifier(ABC):
                     self.best_valid_loss = valid_loss
                     self.save_parameters(best_saved_model_location)
                     self.test(epoch_index, False)
+            print("\n")
             if reduce(bool.__or__, (valid_f1 > previous_f1 for previous_f1 in most_recent_validation_f1_scores)):
                 most_recent_validation_f1_scores.pop(0)
                 most_recent_validation_f1_scores.append(valid_f1)

@@ -14,6 +14,7 @@ import traceback
 import pdb
 import inspect
 import time
+from collections import Counter
 from tqdm import tqdm
 from contextlib import contextmanager
 from typing import Iterable, List, Callable
@@ -21,6 +22,16 @@ from typing import Iterable, List, Callable
 ###################
 # Misc. Utilities #
 ###################
+
+def p1(iterable: Iterable) -> None:
+    for e in iterable:
+        print(e)
+    return
+
+def current_tensors() -> List:
+    import torch
+    import gc
+    return [e for e in gc.get_objects() if isinstance(e, torch.Tensor)]
 
 def only_one(items: List):
     assert isinstance(items, list)
@@ -46,8 +57,14 @@ def eager_filter(func: Callable, iterable: Iterable) -> List:
 def implies(antecedent: bool, consequent: bool) -> bool:
     return not antecedent or consequent
 
+def histogram(iterator: Iterable) -> Counter:
+    counter = Counter()
+    for element in iterator:
+        counter[element]+=1
+    return counter
+
 @contextmanager
-def timer(section_name=None, exitCallback=None):
+def timer(section_name: str = None, exitCallback: Callable[[], None] = None):
     start_time = time.time()
     yield
     end_time = time.time()
@@ -55,9 +72,9 @@ def timer(section_name=None, exitCallback=None):
     if exitCallback != None:
         exitCallback(elapsed_time)
     elif section_name:
-        print('Execution of "{section_name}" took {elapsed_time} seconds.'.format(section_name=section_name, elapsed_time=elapsed_time))
+        print(f'{section_name} took {elapsed_time} seconds.')
     else:
-        print('Execution took {elapsed_time} seconds.'.format(elapsed_time=elapsed_time))
+        print(f'Execution took {elapsed_time} seconds.')
 
 def _dummy_tqdm_message_func(index: int):
     return ''
