@@ -26,9 +26,9 @@ from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_mess
 # Functionality #
 #################
 
-from torch.nn.functional import max_pool1d
+from torch.nn.functional import max_pool1d, avg_pool1d, lp_pool1d, adaptive_avg_pool1d, adaptive_max_pool1d
 
-NUMBER_OF_EPOCHS = 40
+NUMBER_OF_EPOCHS = 100
 BATCH_SIZE = 64
 MAX_VOCAB_SIZE = 25_000
 TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION = (0.50, 0.20, 0.3)

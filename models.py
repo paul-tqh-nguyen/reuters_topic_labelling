@@ -47,6 +47,7 @@ torch.backends.cudnn.benchmark = not __debug__
 
 NUMBER_OF_RELEVANT_RECENT_EPOCHS = 5
 GOAL_NUMBER_OF_OVERSAMPLED_DATAPOINTS = 0
+PORTION_OF_WORDS_TO_CROP_TO_UNK_FOR_DATA_AUGMENTATION = 0.30
 
 ####################
 # Helper Utilities #
@@ -61,7 +62,7 @@ def _safe_count_tensor_division(dividend: torch.Tensor, divisor: torch.Tensor) -
     assert not tensor_has_nan(answer)
     return answer
 
-def soft_f1_loss(y_hat:torch.Tensor, y:torch.Tensor) -> torch.Tensor:
+def soft_f1_loss(y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     batch_size, output_size = tuple(y.shape)
     assert tuple(y.shape) == (batch_size, output_size)
     assert tuple(y_hat.shape) == (batch_size, output_size)
@@ -73,6 +74,18 @@ def soft_f1_loss(y_hat:torch.Tensor, y:torch.Tensor) -> torch.Tensor:
     soft_f1 = 2 * soft_precision * soft_recall / (soft_precision + soft_recall + 1e-16)
     mean_soft_f1 = torch.mean(soft_f1)
     loss = 1-mean_soft_f1
+    assert not tensor_has_nan(loss)
+    return loss
+
+def soft_recall_loss(y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    batch_size, output_size = tuple(y.shape)
+    assert tuple(y.shape) == (batch_size, output_size)
+    assert tuple(y_hat.shape) == (batch_size, output_size)
+    true_positive_sum = (y_hat * y.float()).sum(dim=0)
+    false_negative_sum = ((1-y_hat) * y.float()).sum(dim=0)
+    soft_recall = true_positive_sum / (true_positive_sum + false_negative_sum + 1e-16)
+    mean_soft_recall = torch.mean(soft_recall)
+    loss = 1-mean_soft_recall
     assert not tensor_has_nan(loss)
     return loss
 
@@ -407,6 +420,12 @@ class Classifier(ABC):
     def initialize_model(self) -> None:
         pass
     
+    def augment_training_data_sample(self, text_batch: torch.Tensor) -> torch.Tensor:
+        non_padding_mask = (text_batch != self.pad_idx).to(text_batch.device)
+        unk_mask = non_padding_mask & (torch.rand(text_batch.shape) < PORTION_OF_WORDS_TO_CROP_TO_UNK_FOR_DATA_AUGMENTATION).to(text_batch.device)
+        text_batch = text_batch * (~unk_mask).int() + unk_mask * self.unk_idx
+        return text_batch
+    
     def train_one_epoch(self) -> Tuple[float, float]:
         epoch_loss = 0
         epoch_f1 = 0
@@ -414,9 +433,10 @@ class Classifier(ABC):
         epoch_precision = 0
         number_of_training_batches = len(self.training_iterator)
         self.model.train()
-        for (texts, text_lengths), multiclass_labels in tqdm_with_message(self.training_iterator, post_yield_message_func = lambda index: f'Training F1 {epoch_f1/(index+1):.8f}', total=number_of_training_batches, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
+        for (text_batch, text_lengths), multiclass_labels in tqdm_with_message(self.training_iterator, post_yield_message_func = lambda index: f'Training F1 {epoch_f1/(index+1):.8f}', total=number_of_training_batches, bar_format='{l_bar}{bar:50}{r_bar}'):
+            text_batch = self.augment_training_data_sample(text_batch)
             self.optimizer.zero_grad()
-            predictions = self.model(texts, text_lengths)
+            predictions = self.model(text_batch, text_lengths)
             loss = self.loss_function(predictions, multiclass_labels)
             f1, recall, precision = self.scores_of_discretized_values(predictions, multiclass_labels)
             loss.backward()
@@ -440,8 +460,8 @@ class Classifier(ABC):
         self.optimize_f1_threshold()
         iterator_size = len(iterator)
         with torch.no_grad():
-            for (texts, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'{"Testing" if iterator_is_test_set else "Validation"} F1 {epoch_f1/(index+1):.8f}', total=iterator_size, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
-                predictions = self.model(texts, text_lengths).squeeze(1)
+            for (text_batch, text_lengths), multiclass_labels in tqdm_with_message(iterator, post_yield_message_func = lambda index: f'{"Testing" if iterator_is_test_set else "Validation"} F1 {epoch_f1/(index+1):.8f}', total=iterator_size, bar_format='{l_bar}{bar:50}{r_bar}'):
+                predictions = self.model(text_batch, text_lengths).squeeze(1)
                 loss = self.loss_function(predictions, multiclass_labels)
                 f1, recall, precision = self.scores_of_discretized_values(predictions, multiclass_labels)
                 epoch_loss += loss.item()
@@ -486,7 +506,7 @@ class Classifier(ABC):
             'test_recall': test_recall,
             'test_precision': test_precision,
         }
-        self_score_dict.update({(key, str(value)) for key, value in self.model_args.items()})
+        self_score_dict.update({(key, value.__name__ if hasattr(value, '__name__') else str(value)) for key, value in self.model_args.items()})
         if log_current_model_as_best:
             with open('global_best_model_score.json', 'w') as outfile:
                 json.dump(self_score_dict, outfile)
@@ -558,8 +578,8 @@ class Classifier(ABC):
             training_sum_of_negatives = torch.zeros(self.output_size).to(DEVICE)
             training_count_of_positives = torch.zeros(self.output_size).to(DEVICE)
             training_count_of_negatives = torch.zeros(self.output_size).to(DEVICE)
-            for (texts, text_lengths), multiclass_labels in tqdm_with_message(self.training_iterator, post_yield_message_func = lambda index: f'Optimizing F1 Threshold', total=number_of_training_batches, bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}'):
-                predictions = self.model(texts, text_lengths)
+            for (text_batch, text_lengths), multiclass_labels in tqdm_with_message(self.training_iterator, post_yield_message_func = lambda index: f'Optimizing F1 Threshold', total=number_of_training_batches, bar_format='{l_bar}{bar:50}{r_bar}'):
+                predictions = self.model(text_batch, text_lengths)
                 if __debug__:
                     batch_size = len(text_lengths)
                 assert tuple(predictions.data.shape) == (batch_size, self.output_size)
@@ -668,8 +688,7 @@ class ConvClassifier(Classifier):
         vocab_size = len(self.text_field.vocab)
         self.model = ConvNetwork(vocab_size, self.embedding_size, self.convolution_hidden_size, self.kernel_sizes, self.pooling_method, self.output_size, self.dropout_probability, self.pad_idx, self.unk_idx, self.text_field.vocab.vectors)
         self.optimizer = optim.Adam(self.model.parameters())
-        self.loss_function = nn.BCELoss().to(DEVICE)
-        # self.loss_function = soft_f1_loss # @todo see if we can get this working.
+        self.loss_function = lambda y_hat, y: nn.BCELoss().to(DEVICE)(y_hat, y)
         return
 
 ###############
