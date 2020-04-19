@@ -25,6 +25,7 @@ import itertools
 import nltk
 import pandas as pd
 from typing import Iterable, Tuple
+from nltk.corpus.reader.wordnet import ADJ, ADJ_SAT, ADV, NOUN, VERB
 from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_message, parallel_map, timer
 
 ###########
@@ -38,8 +39,10 @@ TOPICS_DATA_OUTPUT_CSV_FILE = os.path.join(PREPROCESSED_DATA_DIR, 'topics_data.c
 
 COLUMNS_RELEVANT_TO_TOPICS_DATA = {'date', 'text_dateline', 'text_title', 'text', 'file', 'reuter_element_position'}
 MINIMUM_NUMBER_OF_SAMPLES_FOR_TOPIC = 200
-STOPWORDS = nltk.corpus.stopwords.words('english')
 NUMBER_TOKEN = "<NUMBER>"
+STOPWORDS = nltk.corpus.stopwords.words('english')
+PARTS_OF_SPEECH = {ADJ, ADJ_SAT, ADV, NOUN, VERB}
+LEMMATIZER = nltk.stem.WordNetLemmatizer()
 
 #############################################################
 # Shorthand with Special Characters & Contraction Expansion #
@@ -193,7 +196,7 @@ def pervasively_replace(input_string: str, old: str, new: str) -> str:
         input_string = input_string.replace(old, new)
     return input_string
 
-def process_digits(input_string: str) -> str:
+def replace_digits_with_special_token(input_string: str) -> str:
     output_string = input_string
     output_string = re.sub(r'[0-9]+', ' <NUMBER> ', output_string)
     assert 10 == sum(map(int, (digit not in output_string for digit in '1234567890')))
@@ -209,9 +212,61 @@ def remove_white_space_characters(input_string: str) -> str:
 
 def remove_stop_words(input_string: str) -> str:
     output_string = input_string
-    output_string = output_string.split(' ')
-    output_string = ' '.join(filter(lambda word: word not in STOPWORDS, output_string))
-    output_string = remove_white_space_characters(output_string)
+    output_string = ' '.join(filter(lambda word: word not in STOPWORDS, output_string.split(' ')))
+    output_string = remove_white_space_characters(output_string) 
+    return output_string
+
+LEMMATIZED_WORD_SPECIAL_CASE_MAPPING = {
+    # Already stemmed
+    'cts': 'cts',
+    'vs': 'vs',
+    # Unclear cases
+    'cos': 'cos',
+    'tates': 'tates',
+    'barings': 'barings',
+    'reeves': 'reeves',
+    # Misc. cases
+    'less': 'less',
+    'wages': 'wage',
+    'uses': 'use',
+    'rates': 'rates',
+    'hopes': 'hope',
+    'stages': 'stage',
+    'dies': 'die',
+    'possesses': 'possess',
+    'proves': 'prove',
+    'codes': 'code',
+    'primes': 'prime',
+    'spares': 'spare',
+    'shillings': 'shilling',
+    'leaves': 'leave',
+    'planes': 'plane',
+    'sages': 'sage',
+    'reverses': 'reverse',
+    'plates': 'plate',
+    'spines': 'spine',
+    'fines': 'fine',
+    'routes': 'route',
+    'wines': 'wine',
+    'tapes': 'tape',
+    'sites': 'site',
+    'discusses': 'discuss',
+    'slopes': 'slope',
+    'matings': 'mating',
+    'spares': 'spare',
+}
+
+def lemmatize_word(word: str) -> str:
+    if word in LEMMATIZED_WORD_SPECIAL_CASE_MAPPING:
+        lemmatized_word = LEMMATIZED_WORD_SPECIAL_CASE_MAPPING[word]
+    else: 
+        lemmatized_word = min({LEMMATIZER.lemmatize(word,pos) for pos in PARTS_OF_SPEECH}, key=len)
+    return lemmatized_word
+
+def lemmatize_words(input_string: str) -> str:
+    output_string = input_string
+    output_string = ' '.join(map(lemmatize_word, output_string.split(' ')))
+    output_string = remove_white_space_characters(output_string) 
     return output_string
 
 def dwim_weird_characters(input_string: str) -> str:
@@ -227,11 +282,12 @@ def preprocess_text_element_body_text(input_string: str) -> str:
     output_string = input_string
     output_string = output_string.lower()
     output_string = dwim_weird_characters(output_string)
-    output_string = pervasively_replace(output_string, '....','...') # @todo do we want to preprocess these more intelligently or have the model learn it?
-    output_string = process_digits(output_string)
+    output_string = pervasively_replace(output_string, '....','...')
+    output_string = replace_digits_with_special_token(output_string)
     output_string = expand_contractions_and_shorthand_words_with_special_characters(output_string)
     output_string = remove_white_space_characters(output_string)
     output_string = remove_stop_words(output_string)
+    output_string = lemmatize_words(output_string)
     return output_string
 
 ################################
