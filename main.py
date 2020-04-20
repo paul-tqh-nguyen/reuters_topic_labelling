@@ -254,13 +254,10 @@ def main() -> None:
         train_model()
     elif args.hyperparameter_search:
         hyperparameter_search()
-    else:
     elif args.hyperparameter_search_rnn:
-        hyperparameter_search_rnnxser()
-    else:
+        hyperparameter_search_rnn()
     elif args.hyperparameter_search_conv:
         hyperparameter_search_conv()
-    else:
     elif args.hyperparameter_search_dense:
         hyperparameter_search_dense()
     else:
