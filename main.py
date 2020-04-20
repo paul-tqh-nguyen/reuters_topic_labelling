@@ -64,15 +64,64 @@ OUTPUT_DIR = './default_output/'
 
 def train_model() -> None:
     from models import DenseClassifier
-    classifier = DenseClassifier(OUTPUT_DIR, NUMBER_OF_EPOCHS, BATCH_SIZE, TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION, MAX_VOCAB_SIZE, PRE_TRAINED_EMBEDDING_SPECIFICATION,
-                                dense_hidden_sizes=DENSE_HIDDEN_SIZES,
-                                dropout_probability=DROPOUT_PROBABILITY)
     with safe_cuda_memory():
+        classifier = DenseClassifier(OUTPUT_DIR, NUMBER_OF_EPOCHS, BATCH_SIZE, TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION, MAX_VOCAB_SIZE, PRE_TRAINED_EMBEDDING_SPECIFICATION,
+                                     dense_hidden_sizes=DENSE_HIDDEN_SIZES,
+                                     dropout_probability=DROPOUT_PROBABILITY)
         classifier.train()
     return
 
 def hyperparameter_search() -> None:
-    hyperparameter_search_conv()
+    #hyperparameter_search_rnn()
+    #hyperparameter_search_conv()
+    hyperparameter_search_dense()
+    return
+
+def hyperparameter_search_dense() -> None:
+    from models import DenseClassifier
+    
+    number_of_epochs = 100
+    batch_size = 64
+    train_portion, validation_portion, testing_portion = (0.50, 0.20, 0.3)
+    
+    max_vocab_size_choices = [10_000, 25_000, 50_000]
+    pre_trained_embedding_specification_choices = ['charngram.100d', 'fasttext.en.300d', 'fasttext.simple.300d', 'glove.42B.300d', 'glove.840B.300d', 'glove.twitter.27B.25d', 'glove.twitter.27B.50d', 'glove.twitter.27B.100d', 'glove.twitter.27B.200d', 'glove.6B.50d', 'glove.6B.100d', 'glove.6B.200d', 'glove.6B.300d']
+    
+    dense_hidden_sizes_choices = [
+        [128,64],
+        [128,64,64],
+        [128,64,64,32],
+        [128,64,64,32,32],
+        [128,64,64,32,32,16],
+        [128,64,64,32,32,16,16],
+        [128,64,64,32,32,16,16,16],
+    ]
+    dropout_probability_choices = [0.0, 0.25, 0.5]
+    
+    hyparameter_list_choices = list(itertools.product(max_vocab_size_choices,
+                                                      pre_trained_embedding_specification_choices,
+                                                      dense_hidden_sizes_choices,
+                                                      dropout_probability_choices))
+    random.seed()
+    random.shuffle(hyparameter_list_choices)
+    for (max_vocab_size, pre_trained_embedding_specification, dense_hidden_sizes, dropout_probability) in hyparameter_list_choices:
+        output_directory = f'./results/epochs_{number_of_epochs}_batch_size_{batch_size}_train_frac_{train_portion}_validation_frac_{validation_portion}_testing_frac_{testing_portion}_max_vocab_{max_vocab_size}_embed_spec_{pre_trained_embedding_specification}_dense_hidden_sizes_{str(dense_hidden_sizes).replace(" ","")}_dropout_{dropout_probability}'
+        final_output_results_file = os.path.join(output_directory, 'final_model_score.json')
+        if os.path.isfile(final_output_results_file):
+            print(f'Skipping result generation for {final_output_results_file}.')
+        else:
+            with safe_cuda_memory():
+                classifier = DenseClassifier(output_directory,
+                                             number_of_epochs,
+                                             batch_size,
+                                             train_portion,
+                                             validation_portion,
+                                             testing_portion,
+                                             max_vocab_size,
+                                             pre_trained_embedding_specification,
+                                             dense_hidden_sizes=dense_hidden_sizes,
+                                             dropout_probability=dropout_probability)
+                classifier.train()
     return
 
 def hyperparameter_search_conv() -> None:
@@ -117,19 +166,65 @@ def hyperparameter_search_conv() -> None:
         if os.path.isfile(final_output_results_file):
             print(f'Skipping result generation for {final_output_results_file}.')
         else:
-            classifier = ConvClassifier(output_directory,
-                                        number_of_epochs,
-                                        batch_size,
-                                        train_portion,
-                                        validation_portion,
-                                        testing_portion,
-                                        max_vocab_size,
-                                        pre_trained_embedding_specification,
-                                        convolution_hidden_size=convolution_hidden_size,
-                                        pooling_method=pooling_method,
-                                        kernel_sizes=kernel_sizes,
-                                        dropout_probability=dropout_probability)
             with safe_cuda_memory():
+                classifier = ConvClassifier(output_directory,
+                                            number_of_epochs,
+                                            batch_size,
+                                            train_portion,
+                                            validation_portion,
+                                            testing_portion,
+                                            max_vocab_size,
+                                            pre_trained_embedding_specification,
+                                            convolution_hidden_size=convolution_hidden_size,
+                                            pooling_method=pooling_method,
+                                            kernel_sizes=kernel_sizes,
+                                            dropout_probability=dropout_probability)
+                classifier.train()
+    return
+
+def hyperparameter_search_rnn() -> None:
+    from models import EEAPClassifier
+    
+    number_of_epochs = 40
+    batch_size = 1
+    train_portion, validation_portion, testing_portion = (0.50, 0.20, 0.3)
+    
+    max_vocab_size_choices = [10_000, 25_000, 50_000]
+    pre_trained_embedding_specification_choices = ['charngram.100d', 'fasttext.en.300d', 'fasttext.simple.300d', 'glove.42B.300d', 'glove.840B.300d', 'glove.twitter.27B.25d', 'glove.twitter.27B.50d', 'glove.twitter.27B.100d', 'glove.twitter.27B.200d', 'glove.6B.50d', 'glove.6B.100d', 'glove.6B.200d', 'glove.6B.300d']
+    encoding_hidden_size_choices = [128, 256, 512]
+    number_of_encoding_layers_choices = [1, 2]
+    attention_intermediate_size_choices = [4, 16, 32]
+    number_of_attention_heads_choices = [1, 2, 4, 32]
+    dropout_probability_choices = [0.0, 0.25, 0.5]
+
+    hyparameter_list_choices = list(itertools.product(max_vocab_size_choices,
+                                                      pre_trained_embedding_specification_choices,
+                                                      encoding_hidden_size_choices,
+                                                      number_of_encoding_layers_choices,
+                                                      attention_intermediate_size_choices,
+                                                      number_of_attention_heads_choices,
+                                                      dropout_probability_choices))
+    random.shuffle(hyparameter_list_choices)
+    for (max_vocab_size, pre_trained_embedding_specification, encoding_hidden_size, number_of_encoding_layers, attention_intermediate_size_choices, number_of_attention_heads_choices, dropout_probability) in hyparameter_list_choices:
+        output_directory = f'./results/epochs_{number_of_epochs}_batch_size_{batch_size}_train_frac_{train_portion}_validation_frac_{validation_portion}_testing_frac_{testing_portion}_max_vocab_{max_vocab_size}_embed_spec_{pre_trained_embedding_specification}_encoding_size_{encoding_hidden_size}_numb_encoding_layers_{number_of_encoding_layers}_attn_intermediate_size_{attention_intermediate_size_choices}_num_attn_heads_{number_of_attention_heads_choices}_dropout_{dropout_probability}'
+        final_output_results_file = os.path.join(output_directory, 'final_model_score.json')
+        if os.path.isfile(final_output_results_file):
+            print(f'Skipping result generation for {final_output_results_file}.')
+        else:
+            with safe_cuda_memory():
+                classifier = EEAPClassifier(output_directory,
+                                            number_of_epochs,
+                                            batch_size,
+                                            train_portion,
+                                            validation_portion,
+                                            testing_portion,
+                                            max_vocab_size,
+                                            pre_trained_embedding_specification,
+                                            encoding_hidden_size=encoding_hidden_size,
+                                            number_of_encoding_layers=number_of_encoding_layers,
+                                            attention_intermediate_size_choices=attention_intermediate_size_choices,
+                                            number_of_attention_heads_choices=number_of_attention_heads_choices,
+                                            dropout_probability=dropout_probability)
                 classifier.train()
     return
 
