@@ -204,9 +204,10 @@ def hyperparameter_search_rnn() -> None:
                                                       attention_intermediate_size_choices,
                                                       number_of_attention_heads_choices,
                                                       dropout_probability_choices))
+    random.seed()
     random.shuffle(hyparameter_list_choices)
-    for (max_vocab_size, pre_trained_embedding_specification, encoding_hidden_size, number_of_encoding_layers, attention_intermediate_size_choices, number_of_attention_heads_choices, dropout_probability) in hyparameter_list_choices:
-        output_directory = f'./results/epochs_{number_of_epochs}_batch_size_{batch_size}_train_frac_{train_portion}_validation_frac_{validation_portion}_testing_frac_{testing_portion}_max_vocab_{max_vocab_size}_embed_spec_{pre_trained_embedding_specification}_encoding_size_{encoding_hidden_size}_numb_encoding_layers_{number_of_encoding_layers}_attn_intermediate_size_{attention_intermediate_size_choices}_num_attn_heads_{number_of_attention_heads_choices}_dropout_{dropout_probability}'
+    for (max_vocab_size, pre_trained_embedding_specification, encoding_hidden_size, number_of_encoding_layers, attention_intermediate_size, number_of_attention_heads, dropout_probability) in hyparameter_list_choices:
+        output_directory = f'./results/epochs_{number_of_epochs}_batch_size_{batch_size}_train_frac_{train_portion}_validation_frac_{validation_portion}_testing_frac_{testing_portion}_max_vocab_{max_vocab_size}_embed_spec_{pre_trained_embedding_specification}_encoding_size_{encoding_hidden_size}_numb_encoding_layers_{number_of_encoding_layers}_attn_intermediate_size_{attention_intermediate_size}_num_attn_heads_{number_of_attention_heads}_dropout_{dropout_probability}'
         final_output_results_file = os.path.join(output_directory, 'final_model_score.json')
         if os.path.isfile(final_output_results_file):
             print(f'Skipping result generation for {final_output_results_file}.')
@@ -222,8 +223,8 @@ def hyperparameter_search_rnn() -> None:
                                             pre_trained_embedding_specification,
                                             encoding_hidden_size=encoding_hidden_size,
                                             number_of_encoding_layers=number_of_encoding_layers,
-                                            attention_intermediate_size_choices=attention_intermediate_size_choices,
-                                            number_of_attention_heads_choices=number_of_attention_heads_choices,
+                                            attention_intermediate_size=attention_intermediate_size,
+                                            number_of_attention_heads=number_of_attention_heads,
                                             dropout_probability=dropout_probability)
                 classifier.train()
     return
