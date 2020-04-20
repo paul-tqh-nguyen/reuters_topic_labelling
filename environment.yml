@@ -4,6 +4,7 @@ dependencies:
   - pytorch
   - pytorch::torchtext
   - powerai::sentencepiece
+  - nltk
   - beautifulsoup4
   - spacy
   - pandas

@@ -238,6 +238,9 @@ def main() -> None:
     parser.add_argument('-preprocess-data', action='store_true', help='Preprocess the raw SGML files into a CSV.')
     parser.add_argument('-train-model', action='store_true', help='Trains & evaluates our model on our dataset. Saves model to ./best-model.pt.')
     parser.add_argument('-hyperparameter-search', action='store_true', help='Exhaustively performs -train-model over the hyperparameter space. Details of the best performance are tracked in global_best_model_score.json.')
+    parser.add_argument('-hyperparameter-search-rnn', action='store_true', help='Perform the hyperparameter search on our RNN model.')
+    parser.add_argument('-hyperparameter-search-conv', action='store_true', help='Perform the hyperparameter search on our CNN model.')
+    parser.add_argument('-hyperparameter-search-dense', action='store_true', help='Perform the hyperparameter search on our simple feed-forward model.')
     args = parser.parse_args()
     number_of_args_specified = sum(map(int,vars(args).values()))
     if number_of_args_specified == 0:
@@ -251,6 +254,15 @@ def main() -> None:
         train_model()
     elif args.hyperparameter_search:
         hyperparameter_search()
+    else:
+    elif args.hyperparameter_search_rnn:
+        hyperparameter_search_rnnxser()
+    else:
+    elif args.hyperparameter_search_conv:
+        hyperparameter_search_conv()
+    else:
+    elif args.hyperparameter_search_dense:
+        hyperparameter_search_dense()
     else:
         raise Exception('Unexpected args received.')
     return
