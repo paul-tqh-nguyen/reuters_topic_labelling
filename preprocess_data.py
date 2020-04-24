@@ -37,9 +37,9 @@ PREPROCESSED_DATA_DIR = './preprocessed_data/'
 ALL_DATA_OUTPUT_CSV_FILE = os.path.join(PREPROCESSED_DATA_DIR, 'all_extracted_data.csv')
 TOPICS_DATA_OUTPUT_CSV_FILE = os.path.join(PREPROCESSED_DATA_DIR, 'topics_data.csv')
 
-COLUMNS_RELEVANT_TO_TOPICS_DATA = {'date', 'text_dateline', 'text_title', 'text', 'file', 'reuter_element_position'}
+NON_TOPIC_COLUMNS_RELEVANT_TO_TOPICS_DATA = {'date', 'text_dateline', 'text_title', 'raw_text', 'text', 'file', 'reuter_element_position'}
 MINIMUM_NUMBER_OF_SAMPLES_FOR_TOPIC = 200
-NUMBER_TOKEN = "<NUMBER>"
+NUMBER_TOKEN = "NUMBER"
 STOPWORDS = nltk.corpus.stopwords.words('english')
 PARTS_OF_SPEECH = {ADJ, ADJ_SAT, ADV, NOUN, VERB}
 LEMMATIZER = nltk.stem.WordNetLemmatizer()
@@ -278,7 +278,7 @@ def dwim_weird_characters(input_string: str) -> str:
         output_string = output_string.replace(match_string, match_string.replace('"s', "'s"))
     return output_string
 
-def preprocess_text_element_body_text(input_string: str) -> str:
+def preprocess_article_text(input_string: str) -> str:
     output_string = input_string
     output_string = output_string.lower()
     output_string = dwim_weird_characters(output_string)
@@ -295,10 +295,10 @@ def preprocess_text_element_body_text(input_string: str) -> str:
 ################################
 
 def delete_topics_with_insufficient_data(topics_df: pd.DataFrame) -> pd.DataFrame:
-    all_topics = set(topics_df.columns)-COLUMNS_RELEVANT_TO_TOPICS_DATA
+    all_topics = set(topics_df.columns)-NON_TOPIC_COLUMNS_RELEVANT_TO_TOPICS_DATA
     columns_with_insufficient_samples = [column_name for column_name, number_of_samples in topics_df[all_topics].sum().iteritems() if number_of_samples < MINIMUM_NUMBER_OF_SAMPLES_FOR_TOPIC]
     topics_df.drop(columns_with_insufficient_samples, axis=1, inplace=True)
-    updated_topics = set(topics_df.columns)-COLUMNS_RELEVANT_TO_TOPICS_DATA
+    updated_topics = set(topics_df.columns)-NON_TOPIC_COLUMNS_RELEVANT_TO_TOPICS_DATA
     topics_df = topics_df[topics_df[updated_topics].sum(axis=1)>0]
     return topics_df
 
@@ -321,7 +321,7 @@ def extract_csv_rows_from_sgm_file(sgm_file: str) -> Tuple[dict, dict]:
             text_element_body_text = text_element_body.text if text_element_body else None
             if not text_element_body_text or len(text_element_body_text)==0:
                 continue
-            preprocessed_text_element_body_text = preprocess_preprocessed_text_element_body_text(text_element_body_text)
+            preprocessed_text_element_body_text = preprocess_article_text(text_element_body_text)
             if len(preprocessed_text_element_body_text) < 10:
                 continue
             date_element = at_most_one(reuters_element.find_all('date'))
@@ -359,7 +359,7 @@ def extract_csv_rows_from_sgm_file(sgm_file: str) -> Tuple[dict, dict]:
             all_rows.append(all_data_row)
             
             if len(topics) > 0:
-                topic_row = {column_name:all_data_row[column_name] for column_name in COLUMNS_RELEVANT_TO_TOPICS_DATA}
+                topic_row = {column_name:all_data_row[column_name] for column_name in NON_TOPIC_COLUMNS_RELEVANT_TO_TOPICS_DATA}
                 topic_row.update({topic: True for topic in topics})
                 topics_rows.append(topic_row)
     return all_rows, topics_rows
@@ -389,7 +389,7 @@ def preprocess_data() -> None:
     print(f'{ALL_DATA_OUTPUT_CSV_FILE} has {len(all_df.columns)} columns.')
     print()
     print(f'Preprocessing of topics is in {TOPICS_DATA_OUTPUT_CSV_FILE}')
-    print(f'{TOPICS_DATA_OUTPUT_CSV_FILE} has {len(set(topics_df.columns)-COLUMNS_RELEVANT_TO_TOPICS_DATA)} topics.')
+    print(f'{TOPICS_DATA_OUTPUT_CSV_FILE} has {len(set(topics_df.columns)-NON_TOPIC_COLUMNS_RELEVANT_TO_TOPICS_DATA)} topics.')
     print(f'{TOPICS_DATA_OUTPUT_CSV_FILE} has {len(topics_df)} rows.')
     print(f'{TOPICS_DATA_OUTPUT_CSV_FILE} has {len(topics_df.columns)} columns.')
     print()

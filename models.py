@@ -437,12 +437,14 @@ class Classifier(ABC):
     def load_data(self):
         self.text_field = data.Field(tokenize = 'spacy', include_lengths = True, batch_first = True)
         self.label_field = data.LabelField(dtype = torch.long)
+        self.misc_field = data.RawField()
         with open(preprocess_data.TOPICS_DATA_OUTPUT_CSV_FILE, 'r') as topics_csv_file:
             column_names = eager_map(str.strip, topics_csv_file.readline().split(','))
             column_name_to_field_map = [(column_name, self.text_field if column_name=='text' else
-                                         None if column_name in preprocess_data.COLUMNS_RELEVANT_TO_TOPICS_DATA else
+                                         self.misc_field if column_name in preprocess_data.NON_TOPIC_COLUMNS_RELEVANT_TO_TOPICS_DATA else
                                          self.label_field) for column_name in column_names]
-        self.topics: List[str] = list(set(column_names)-preprocess_data.COLUMNS_RELEVANT_TO_TOPICS_DATA)
+        self.topics: List[str] = list(set(column_names)-preprocess_data.NON_TOPIC_COLUMNS_RELEVANT_TO_TOPICS_DATA)
+        
         self.output_size = len(self.topics)
         self.all_data = data.dataset.TabularDataset(
             path=preprocess_data.TOPICS_DATA_OUTPUT_CSV_FILE,
@@ -688,6 +690,8 @@ class Classifier(ABC):
         return
     
     def reset_f1_threshold(self) -> None:
+        if 'f1_threshold' in vars(self):
+            self.last_f1_threshold = self.f1_threshold
         self.f1_threshold = torch.ones(self.output_size, dtype=float).to(DEVICE)*0.5
         return 
     
@@ -728,15 +732,20 @@ class Classifier(ABC):
     
     def classify_string(self, input_string: str) -> Set[str]:
         self.model.eval()
-        tokenized = [token.text for token in self.text_field.tokenize(input_string)]
+        preprocessed_input_string = preprocess_data.preprocess_article_text(input_string)
+        tokenized = self.text_field.tokenize(preprocessed_input_string)
         indexed = [self.text_field.vocab.stoi[t] for t in tokenized]
         lengths = [len(indexed)]
         tensor = torch.LongTensor(indexed).to(DEVICE)
         tensor = tensor.view(1,-1)
         length_tensor = torch.LongTensor(lengths).to(DEVICE)
-        prediction_as_index = self.model(tensor, length_tensor).argmax(dim=1).item() # @todo Is this correct? 
-        prediction = self.label_field.vocab.itos[prediction_as_index]
-        return prediction
+        assert 'last_f1_threshold' in vars(self), "Model has not been trained yet and F1 threshold has not been optimized."
+        threshold = self.last_f1_threshold
+        predictions = self.model(tensor, length_tensor)
+        prediction = predictions[0]
+        discretized_prediction = map(torch.Tensor.item, (prediction > threshold).bool())
+        topic_labels = {topic for topic_prediction, topic in zip(discretized_prediction, self.topics) if topic_prediction}
+        return topic_labels
 
 class EEAPClassifier(Classifier):
     def initialize_model(self) -> None:
