@@ -46,7 +46,7 @@ torch.backends.cudnn.deterministic = __debug__
 torch.backends.cudnn.benchmark = not __debug__
 
 NUMBER_OF_RELEVANT_RECENT_EPOCHS = 5
-GOAL_NUMBER_OF_OVERSAMPLED_DATAPOINTS = 5000
+GOAL_NUMBER_OF_OVERSAMPLED_DATAPOINTS = 0
 PORTION_OF_WORDS_TO_CROP_TO_UNK_FOR_DATA_AUGMENTATION = 0.30
 
 ####################

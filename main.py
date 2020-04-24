@@ -28,53 +28,33 @@ from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_mess
 
 from torch.nn.functional import max_pool1d, avg_pool1d, adaptive_avg_pool1d, adaptive_max_pool1d, lp_pool1d
 
-# NUMBER_OF_EPOCHS = 100
-# BATCH_SIZE = 64
-# MAX_VOCAB_SIZE = 25_000
-# TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION = (0.50, 0.20, 0.3)
-
-# PRE_TRAINED_EMBEDDING_SPECIFICATION = 'glove.840B.300d'
-# CONVOLUTION_HIDDEN_SIZE = 512
-# KERNEL_SIZES = [3,4,5,6]
-# POOLING_METHOD = max_pool1d
-# DROPOUT_PROBABILITY = 0.5
-
-# OUTPUT_DIR = './default_output/'
-
-# def train_model() -> None:
-#     from models import ConvClassifier
-#     classifier = ConvClassifier(OUTPUT_DIR, NUMBER_OF_EPOCHS, BATCH_SIZE, TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION, MAX_VOCAB_SIZE, PRE_TRAINED_EMBEDDING_SPECIFICATION,
-#                                 convolution_hidden_size=CONVOLUTION_HIDDEN_SIZE,
-#                                 kernel_sizes=KERNEL_SIZES,
-#                                 pooling_method=POOLING_METHOD,
-#                                 dropout_probability=DROPOUT_PROBABILITY)
-#     classifier.train()
-#     return
-
 NUMBER_OF_EPOCHS = 100
 BATCH_SIZE = 64
 MAX_VOCAB_SIZE = 25_000
 TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION = (0.50, 0.20, 0.3)
 
-PRE_TRAINED_EMBEDDING_SPECIFICATION = 'glove.6B.100d'
-DENSE_HIDDEN_SIZES = [64,64,64,32]
+PRE_TRAINED_EMBEDDING_SPECIFICATION = 'fasttext.en.300d'
+CONVOLUTION_HIDDEN_SIZE = 256
+KERNEL_SIZES = [3,4,5,6]
+POOLING_METHOD = max_pool1d
 DROPOUT_PROBABILITY = 0.5
 
 OUTPUT_DIR = './default_output/'
 
 def train_model() -> None:
-    from models import DenseClassifier
-    with safe_cuda_memory():
-        classifier = DenseClassifier(OUTPUT_DIR, NUMBER_OF_EPOCHS, BATCH_SIZE, TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION, MAX_VOCAB_SIZE, PRE_TRAINED_EMBEDDING_SPECIFICATION,
-                                     dense_hidden_sizes=DENSE_HIDDEN_SIZES,
-                                     dropout_probability=DROPOUT_PROBABILITY)
-        classifier.train()
+    from models import ConvClassifier
+    classifier = ConvClassifier(OUTPUT_DIR, NUMBER_OF_EPOCHS, BATCH_SIZE, TRAIN_PORTION, VALIDATION_PORTION, TESTING_PORTION, MAX_VOCAB_SIZE, PRE_TRAINED_EMBEDDING_SPECIFICATION,
+                                convolution_hidden_size=CONVOLUTION_HIDDEN_SIZE,
+                                kernel_sizes=KERNEL_SIZES,
+                                pooling_method=POOLING_METHOD,
+                                dropout_probability=DROPOUT_PROBABILITY)
+    classifier.train()
     return
 
 def hyperparameter_search() -> None:
     #hyperparameter_search_rnn()
-    #hyperparameter_search_conv()
-    hyperparameter_search_dense()
+    hyperparameter_search_conv()
+    #hyperparameter_search_dense()
     return
 
 def hyperparameter_search_dense() -> None:

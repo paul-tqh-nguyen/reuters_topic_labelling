@@ -314,18 +314,20 @@ def extract_csv_rows_from_sgm_file(sgm_file: str) -> Tuple[dict, dict]:
         soup = bs4.BeautifulSoup(sgm_text,'html.parser')
         reuters_elements = soup.find_all('reuters')
         for row_index, reuters_element in enumerate(reuters_elements):
-            get_element_text = lambda element: element.text
             text_element = at_most_one(reuters_element.find_all('text'))
             text_element_title = at_most_one(text_element.find_all('title'))
             text_element_dateline = at_most_one(text_element.find_all('dateline'))
             text_element_body = at_most_one(text_element.find_all('body'))
-            text_element_body_text = preprocess_text_element_body_text(text_element_body.text) if text_element_body else None
+            text_element_body_text = text_element_body.text if text_element_body else None
             if not text_element_body_text or len(text_element_body_text)==0:
+                continue
+            preprocessed_text_element_body_text = preprocess_preprocessed_text_element_body_text(text_element_body_text)
+            if len(preprocessed_text_element_body_text) < 10:
                 continue
             date_element = at_most_one(reuters_element.find_all('date'))
             topics_element = at_most_one(reuters_element.find_all('topics'))
             topic_elements = topics_element.find_all('d')
-            topics: List[str] = eager_map(get_element_text, topic_elements)
+            topics: List[str] = eager_map(bs4.element.Tag.get_text, topic_elements)
             places_element = at_most_one(reuters_element.find_all('places'))
             place_elements = places_element.find_all('d')
             people_element = at_most_one(reuters_element.find_all('people'))
@@ -341,15 +343,16 @@ def extract_csv_rows_from_sgm_file(sgm_file: str) -> Tuple[dict, dict]:
             all_data_row = {
                 'date': date_element.text.strip(),
                 'topics_raw_string': topics,
-                'places': eager_map(get_element_text, place_elements),
-                'people': eager_map(get_element_text, person_elements),
-                'orgs': eager_map(get_element_text, org_elements),
-                'exchanges': eager_map(get_element_text, exchange_elements),
-                'companies': eager_map(get_element_text, company_elements),
-                'unknown': eager_map(get_element_text, unknown_elements),
+                'places': eager_map(bs4.element.Tag.get_text, place_elements),
+                'people': eager_map(bs4.element.Tag.get_text, person_elements),
+                'orgs': eager_map(bs4.element.Tag.get_text, org_elements),
+                'exchanges': eager_map(bs4.element.Tag.get_text, exchange_elements),
+                'companies': eager_map(bs4.element.Tag.get_text, company_elements),
+                'unknown': eager_map(bs4.element.Tag.get_text, unknown_elements),
                 'text_title': text_element_title.text if text_element_title else None,
                 'text_dateline': text_element_dateline.text if text_element_dateline else None,
-                'text': text_element_body_text,
+                'raw_text': text_element_body_text,
+                'text': preprocessed_text_element_body_text,
                 'file': sgm_file,
                 'reuter_element_position': row_index,
             }
