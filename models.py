@@ -46,7 +46,7 @@ torch.backends.cudnn.deterministic = __debug__
 torch.backends.cudnn.benchmark = not __debug__
 
 NUMBER_OF_RELEVANT_RECENT_EPOCHS = 5
-GOAL_NUMBER_OF_OVERSAMPLED_DATAPOINTS = 0
+GOAL_NUMBER_OF_OVERSAMPLED_DATAPOINTS = 5000
 PORTION_OF_WORDS_TO_CROP_TO_UNK_FOR_DATA_AUGMENTATION = 0.30
 
 ####################
@@ -135,11 +135,13 @@ def _sanity_check_discrete_occurences(discrete_occurences: torch.Tensor, origina
                 assert discrete_occurences[index].item() - mean_discrete_occurences_for_label < 1
     return
 
-def balance_dataset_wrt_chi_squared_test(dataset: torchtext.data.dataset.Dataset, example_numericalized_labels: Callable[[torchtext.data.example.Example], torch.Tensor]) -> torchtext.data.dataset.Dataset:
+def balance_dataset_wrt_chi_squared_test(dataset: torchtext.data.dataset.Dataset, example_numericalized_labels: Callable[[torchtext.data.example.Example], torch.Tensor]) -> Tuple[torchtext.data.dataset.Dataset, float, float]:
+    original_labels_matrix = torch.stack([example_numericalized_labels(example) for example in dataset]).to(DEVICE)
+    original_chi_squared_statistic = chi_squared_loss(original_labels_matrix.float().sum(dim=0)).item()
     if GOAL_NUMBER_OF_OVERSAMPLED_DATAPOINTS == 0:
         oversampled_dataset = dataset
-    else: # @todo this causes a GPU memory leak
-        original_labels_matrix = torch.stack([example_numericalized_labels(example) for example in dataset]).to(DEVICE)
+        final_chi_squared_statistic = original_chi_squared_statistic
+    else:
         occurences = nn.Parameter(math.log(GOAL_NUMBER_OF_OVERSAMPLED_DATAPOINTS / len(dataset)) * torch.ones([len(dataset),1], dtype=float).to(DEVICE))
         optimizer = optim.Adam([occurences])
         count = 0
@@ -176,7 +178,9 @@ def balance_dataset_wrt_chi_squared_test(dataset: torchtext.data.dataset.Dataset
                 oversampled_examples.append(example)
         oversampled_dataset = torchtext.data.dataset.Dataset(oversampled_examples, dataset.fields)
         assert torch.all(torch.stack(eager_map(example_numericalized_labels, oversampled_dataset)).to(DEVICE).sum(dim=0) == (original_labels_matrix * discrete_occurences).sum(dim=0))
-    return oversampled_dataset
+        final_chi_squared_statistic = chi_squared_loss((original_labels_matrix.float()*discrete_occurences).sum(dim=0)).item()
+        assert tuple(discrete_occurences.shape) == (original_labels_matrix.shape[0],1)
+    return oversampled_dataset, original_chi_squared_statistic, final_chi_squared_statistic
 
 ##########
 # Models #
@@ -342,6 +346,7 @@ class ConvNetwork(nn.Module):
 class DenseNetwork(nn.Module):
     def __init__(self, vocab_size: int, embedding_size: int, dense_hidden_sizes: Iterable[int], output_size: int, dropout_probability: float, pad_idx: int, unk_idx: int, initial_embedding_vectors): # @todo declare type of initial_embedding_vectors
         super().__init__()
+        self.pad_idx = pad_idx
         self.max_sequence_length = dense_hidden_sizes[0]
         if __debug__:
             self.embedding_size = embedding_size
@@ -384,7 +389,8 @@ class DenseNetwork(nn.Module):
         if text_batch_max_sentence_length > self.max_sequence_length:
             size_adjusted_text_batch = text_batch[:, :self.max_sequence_length]
         elif text_batch_max_sentence_length < self.max_sequence_length:
-            size_adjusted_text_batch = torch.zeros(batch_size, self.max_sequence_length, dtype=text_batch.dtype).to(text_batch.device)
+            size_adjusted_text_batch = torch.ones(batch_size, self.max_sequence_length, dtype=text_batch.dtype).to(text_batch.device)
+            size_adjusted_text_batch = self.pad_idx * size_adjusted_text_batch
             size_adjusted_text_batch[:, :text_batch_max_sentence_length] = text_batch
         else:
             size_adjusted_text_batch = text_batch
@@ -466,8 +472,12 @@ class Classifier(ABC):
     
     def balance_training_data(self) -> None:
         example_numericalized_labels = lambda example: torch.tensor([bool(getattr(example, topic)) for topic in self.topics], dtype=int)
-        with timer("Dataset balancing"):
-            self.training_data = balance_dataset_wrt_chi_squared_test(self.training_data, example_numericalized_labels)
+        with timer('Dataset balancing'):
+            print(f'Original dataset size: {len(self.training_data)}')
+            self.training_data, original_chi_squared_statistic, final_chi_squared_statistic = balance_dataset_wrt_chi_squared_test(self.training_data, example_numericalized_labels)
+            print(f'Original dataset chi-squared statistic: {original_chi_squared_statistic}')
+            print(f'Final dataset chi-squared statistic: {final_chi_squared_statistic}')
+            print(f"Oversampled dataset size: {len(self.training_data)}")
         return
     
     def determine_training_unknown_words(self) -> None:
