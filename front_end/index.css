@@ -51,6 +51,46 @@ nav{
     margin-top: 2%;
 }
 
+.topic-section {
+    position: relative;
+    padding-top: 30px;
+}
+
+.topic-section a {
+    position: relative;
+    padding-top: 30px;
+}
+
+.topic-section a {
+    color: #be29ec;
+    transition: color 0.5s;
+}
+
+.topic-section a:hover {
+    color: black;
+}
+
+.topic-section ul, .topic-section ol {
+    margin-left: 12vw;
+    margin-right: 10%;
+    margin-bottom: 40px;
+    width: 80%;
+    text-align: left;
+    font-size: 2em;
+}
+
+ol li ul li {
+    padding-top: 20px;
+}
+
+.topic-section li {
+    margin-bottom: 20px;
+}
+
+.topic-section ul {
+    list-style-type: square;
+}
+
 .globalNav .colorize {
     color: #fff
 }
@@ -267,8 +307,18 @@ header a:hover {
 .common-body-text {
     margin-left: 10%;
     margin-right: 10%;
-    margin-bottom: 100px;
+    margin-bottom: 40px;
     width: 80%;
     text-align: left;
     font-size: 2em;
+}
+
+pre code {
+  background-color: #eee;
+  border: 1px solid #999;
+  font-size: 1.8em;
+  display: block;
+  padding-top: 20px;
+  padding-bottom: 20px;
+  padding-left: 7vw;
 }

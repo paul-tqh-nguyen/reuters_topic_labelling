@@ -1,166 +1,635 @@
 <!DOCTYPE html>
 <html>
    <head>
-      <title>Multi-Label Topic Modelling on Reuters Newswire Articles</title>
+      <title>Multi-Label Topic Classification on Reuters Newswire Articles</title>
       <link rel="stylesheet" href="./front_end/footer.css">
       <link rel="stylesheet" href="./front_end/index.css">
       <script defer="" src="./front_end/footer.js"></script>
    </head>
    <body>
       <main>
-        <header>
-          <div id="stripes"></div>
-          <section id="intro">
-            <div class="container-lg">
-              <h1>Multi-Label Topic Modelling on Reuters Newswire Articles</h1>
-              <p class="common-body-text"  style="color: white">
-                This document covers efforts towards seeing what tasks could be accomplished using deep-learning methods on the <a href="http://kdd.ics.uci.edu/databases/reuters21578/reuters21578.html">Reuters-21578 Text Categorization Collection</a>.
-		</p>
-              <p class="common-body-text"  style="color: #fff">
-		The code used in this document can be found <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling">here</a>.
-              </p>
+         <header>
+            <div id="stripes"></div>
+            <section id="intro">
+               <div class="container-lg">
+                  <h1>Multi-Label Topic Classification on Reuters Newswire Articles</h1>
+                  <p class="common-body-text"  style="color: white; padding-top: 50px; padding-bottom: 70px;">
+                     This document covers efforts towards seeing what tasks could be accomplished using deep-learning methods on the <a href="http://kdd.ics.uci.edu/databases/reuters21578/reuters21578.html">Reuters-21578 Text Categorization Collection</a>.
+                  </p>
+                  <p class="common-body-text"  style="color: #fff">
+                     The code used in this document can be found <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling">here</a>.
+                  </p>
+               </div>
+            </section>
+         </header>
+         <div id="problem-description" class="topic-section">
+            <center>
+               <h2 class="common-UppercaseTitle">
+                  <svg class="section-icon">
+                     <circle fill="#eeb5f7" cx="33" cy="33" r="33">
+                     </circle>
+                     <path d="M15.7 45.3c-.7-2-.7-3.3-.7-8v-8.7c0-4.6 0-6 .7-8 .8-2.2 2.7-4 5-5 2-.6 3.3-.6 8-.6h8.7c4.6 0 6 0 8 .7 2.2.8 4 2.7 5 5 .6 2 .6 3.3.6 8v8.7c0 4.6 0 6-.7 8-.8 2.2-2.7 4-5 5-2 .6-3.3.6-8 .6h-8.7c-4.6 0-6 0-8-.7-2.2-.8-4-2.7-5-5z" fill="#beb5eb"></path>
+                     <g>
+                        <rect fill="#8e80ff" x="23" y="27" width="20" height="2" rx="1"></rect>
+                        <circle fill="#8e80ff" cx="27.000185427800893" cy="28" r="4"></circle>
+                     </g>
+                     <g>
+                        <rect fill="#8e80ff" x="23" y="37" width="20" height="2" rx="1"></rect>
+                        <circle fill="#8e80ff" cx="27.0000000285928" cy="38" r="4"></circle>
+                     </g>
+                  </svg>
+                  <span>
+                  Data Description & Problem Overview
+                  </span>
+               </h2>
+            </center>
+            <p class="common-body-text">
+               We are looking at the <a href="http://kdd.ics.uci.edu/databases/reuters21578/reuters21578.html">Reuters-21578 Text Categorization Collection</a>.
+            </p>
+            <p class="common-body-text">
+               A copy of the data that can be found in our <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/tree/master/data">repository</a>.
+            </p>
+            <p class="common-body-text">
+               Their provided <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/data/README.txt">README</a> gives a good summary of what is provided. We'll provide a brief recap of the most pertinent content here:
+               <ul>
+		 <li>The data is provided in <a href="https://en.wikipedia.org/wiki/Standard_Generalized_Markup_Language">SGML format</a>.</li>
+		 <li>The data contains 21,578 Reuters Newswire articles from 1987.</li>
+		 <li>There are 21 <code>.sgm</code> files with 1000 elements each. The 22nd and last <code>.sgm</code> file contains 578 elements. We'll examine those elements later in this section.</li>
+		 <li>They also provide a list of exchanges, orgs, people, places, and topics. All of this can be extracted directly form the <code>.sgm</code> files.</li>
+               </ul>
+            </p>
+            <p class="common-body-text">
+	      Here's a brief look at some of the <code>.sgm</code> content:
+	      <pre>
+		<code>
+pnguyen@pnguyenmachine:/tmp/reuters_topic_labelling/data$ head -n 30 reut2-021.sgm
+&lt;!DOCTYPE lewis SYSTEM &quot;lewis.dtd&quot;&gt;
+&lt;REUTERS TOPICS=&quot;NO&quot; LEWISSPLIT=&quot;TEST&quot; CGISPLIT=&quot;TRAINING-SET&quot; OLDID=&quot;20436&quot; NEWID=&quot;21001&quot;&gt;
+&lt;DATE&gt;19-OCT-1987 15:37:46.03&lt;/DATE&gt;
+&lt;TOPICS&gt;&lt;/TOPICS&gt;
+&lt;PLACES&gt;&lt;/PLACES&gt;
+&lt;PEOPLE&gt;&lt;/PEOPLE&gt;
+&lt;ORGS&gt;&lt;/ORGS&gt;
+&lt;EXCHANGES&gt;&lt;/EXCHANGES&gt;
+&lt;COMPANIES&gt;&lt;/COMPANIES&gt;
+&lt;UNKNOWN&gt; 
+&amp;#5;&amp;#5;&amp;#5;F 
+&amp;#22;&amp;#22;&amp;#1;f2882&amp;#31;reute
+f f BC-CITYFED-FINANCI   10-19 0013&lt;/UNKNOWN&gt;
+&lt;TEXT TYPE=&quot;BRIEF&quot;&gt;&amp;#2;
+******&lt;TITLE&gt;CITYFED FINANCIAL CORP SAYS IT CUT QTRLY DIVIDEND TO ONE CENT FROM 10 CTS/SHR
+&lt;/TITLE&gt;Blah blah blah.
+&amp;#3;
+
+&lt;/TEXT&gt;
+&lt;/REUTERS&gt;
+&lt;REUTERS TOPICS=&quot;YES&quot; LEWISSPLIT=&quot;TEST&quot; CGISPLIT=&quot;TRAINING-SET&quot; OLDID=&quot;20435&quot; NEWID=&quot;21002&quot;&gt;
+&lt;DATE&gt;19-OCT-1987 15:35:53.55&lt;/DATE&gt;
+&lt;TOPICS&gt;&lt;D&gt;crude&lt;/D&gt;&lt;D&gt;ship&lt;/D&gt;&lt;/TOPICS&gt;
+&lt;PLACES&gt;&lt;D&gt;bahrain&lt;/D&gt;&lt;D&gt;iran&lt;/D&gt;&lt;D&gt;usa&lt;/D&gt;&lt;/PLACES&gt;
+&lt;PEOPLE&gt;&lt;/PEOPLE&gt;
+&lt;ORGS&gt;&lt;/ORGS&gt;
+&lt;EXCHANGES&gt;&lt;/EXCHANGES&gt;
+&lt;COMPANIES&gt;&lt;/COMPANIES&gt;
+&lt;UNKNOWN&gt; 
+&amp;#5;&amp;#5;&amp;#5;Y 
+pnguyen@pnguyenmachine:/tmp/reuters_topic_labelling/data$ 
+		</code>
+	      </pre>
+            </p>
+            <p class="common-body-text">
+	      Note the presence of <code>"Blah blah blah."</code> in the <code>.sgm</code> file. This is discussed in the <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/data/README.txt">README</a>. These strings are placed where there was missing content. This type of content among others are handled during our data pre-processing.
+            </p>
+            <p class="common-body-text">
+	      Each of the articles contained in this dataset were encapsulated in the <code>.sgm</code> files as a <code>&lt;REUTERS&gt;</code> element.
+            </p>
+            <p class="common-body-text">
+	      Each <code>&lt;REUTERS&gt;</code> element could contain the following:
+            </p>
+            <p class="common-body-text">
+	      Not all of the <code>&lt;REUTERS&gt;</code> elements contained elements for each of the tags described above. There was sometimes not present data (e.g. some articles didn't mention any significant individual people, so there was nothing listed in the <code>&lt;PEOPLE&gt;</code> tag or the <code>&lt;PEOPLE&gt;</code> was entirely not present) and missing data (very often noted by the <code>"Blah blah blah."</code> string).
+            </p>
+            <p class="common-body-text">
+	      We'll broadly go over our pre-processing pipeline here and go over more details in the <a href="#implementation-details">implementation details section</a>.
+            </p>
+            <p class="common-body-text">
+	      Our pre-processing pipeline generates two files, <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/all_extracted_data.csv"><code>all_extracted_data.csv</code></a> and <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a>.
+            </p>
+            <p class="common-body-text">
+	      <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/all_extracted_data.csv"><code>all_extracted_data.csv</code></a> contains all the data present in the <code>.sgm</code> files in a <code>.csv</code> format. A row is generated for each article, i.e. <code>&lt;REUTERS&gt;</code> element, that has sufficient data. 
+            </p>
+            <p class="common-body-text">
+	      <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a> contains the <a href="https://en.wikipedia.org/wiki/Database_normalization">normalized</a> <code>&lt;TOPICS&gt;</code> data along with the corresponding article. 
+            </p>
+            <p class="common-body-text">
+	      Our dataset pre-processing pipeline was as follows:
+               <ol>
+		 <li>We extract all of the <code>&lt;REUTERS&gt;</code> elements from the 22 <code>.sgm</code> files.</li>
+		 <li>From each <code>&lt;REUTERS&gt;</code> article, we extract:
+		   <ul style="padding-top: 20px">
+		     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the article date via <code>&lt;DATE&gt;</code>.</li>
+		     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of a topics (a string with comma separated values, e.g. <code>"crude, ship, oil"</code>) via <code>&lt;TOPICS&gt;</code>.</li>
+		     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of places mentioned in the article via <code>&lt;PLACES&gt;</code>.</li>
+		     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of people mentioned in the article via <code>&lt;PEOPLE&gt;</code>.</li>
+		     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of organizations mentioned in the article via <code>&lt;ORGS&gt;</code>.</li>
+		     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of companies mentioned in the article via <code>&lt;COMPANIES&gt;</code>.</li>
+		     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the article title via <code>&lt;TITLE&gt;</code>.</li>
+		     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the article <a href="https://en.wikipedia.org/wiki/Dateline">dateline</a> via <code>&lt;DATELINE&gt;</code>.</li>
+		     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the raw original article text via <code>&lt;TEXT&gt;</code>.</li>
+		     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the preprocessed article text (we'll go over in detail this momentarily).</li>
+		     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">whatever arbitrary content is in the <code>&lt;UNKNOWN&gt;</code> element.</li>
+		   </ul>
+		 </li>
+		 <li>The above data (along with the ordinal position of the <code>&lt;REUTERS&gt;</code> element within the <code>.sgm</code> file and the name of the relevant <code>.sgm</code> file) is stored in <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/all_extracted_data.csv"><code>all_extracted_data.csv</code></a>. <code>&lt;REUTERS&gt;</code> elements with an empty or corrupt nested <code>&lt;TEXT&gt;</code> element are not included.</li>
+		 <li>The topics data is then <a href="https://en.wikipedia.org/wiki/Database_normalization">normalized</a> to create <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a>. We removed topics that didn't have a sufficient number of associated articles. We required each topic to have at least 200 articles. The models we implemented were not capable of learning to associate topics with an insufficient number of samples well.</li>
+               </ol>
+            </p>
+            <p class="common-body-text">
+	      Our article text pre-processining pipeline was (in order):
+	      <ol>
+		<li>Lower case the string.</li>
+		<li>Fix common typos, e.g. "<code>"s</code>" was often used in place of "<code>'s</code>" in the raw text.</li>
+		<li><a href="https://en.wikipedia.org/wiki/Ellipsis">Ellipsis</a> shortening (i.e. replacting all text matching the reguular expression <code>"\.\.\.\.+"</code> with the string <code>"..."</code>).</li>
+		<li>Replacing numbers with a special <code>NUMBER</code> token (in order to decrease the unknown token count).</li>
+		<li><a href="https://en.wikipedia.org/wiki/Contraction_(grammar)">Contraction</a> expansion.</li>
+		<li>White space stripping.</li>
+		<li><a href="https://en.wikipedia.org/wiki/Stop_words">Stopword</a> removal.</li>
+		<li><a href="https://en.wikipedia.org/wiki/Lemmatisation">Lemmatization</a>.</li>
+	      </ol>
+            </p>
+            <p class="common-body-text">
+	      More specifics of our data preprocessing pipeline are discussed in <a href="#implementation-details">the implementation details section</a>.
+            </p>
+            <p class="common-body-text">
+	      Here's a sample of <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/all_extracted_data.csv"><code>all_extracted_data.csv</code></a> via <a href="https://pandas.pydata.org/">Pandas</a>:
+	      <pre>
+		<code>
+&gt;&gt;&gt; df = pd.read_csv('all_extracted_data.csv')
+&gt;&gt;&gt; df.head
+&lt;bound method NDFrame.head of                           date  topics_raw_string                        places  ...                                               text                  file reuter_element_position
+0       2-JUN-1987 10:04:07.81            ['cpi']                    ['brazil']  ...  president jose sarney today declare &quot;a war wit...  ./data/reut2-018.sgm                       0
+1       2-JUN-1987 10:05:19.67                 []                       ['usa']  ...  sale new, single-family home rose NUMBER . &lt;...  ./data/reut2-018.sgm                       2
+2       2-JUN-1987 10:06:06.42                 []                        ['uk']  ...  brixton estate plc establish sterling commerci...  ./data/reut2-018.sgm                       3
+3       2-JUN-1987 10:06:53.99                 []                       ['usa']  ...  president reagan say paul volcker decline serv...  ./data/reut2-018.sgm                       4
+4       2-JUN-1987 10:11:04.12                 []                   ['belgium']  ...  belgium's public expenditure deficit fell shar...  ./data/reut2-018.sgm                       5
+...                        ...                ...                           ...  ...                                                ...                   ...                     ...
+19037  19-OCT-1987 21:22:52.77       ['money-fx']              ['japan', 'usa']  ...  japan's finance minister kiichi miyazawa say r...  ./data/reut2-019.sgm                     992
+19038  19-OCT-1987 21:58:03.49                 []               ['philippines']  ...  explosive device blow philippine congress buil...  ./data/reut2-019.sgm                     994
+19039  19-OCT-1987 22:08:52.87  ['crude', 'ship']      ['japan', 'usa', 'iran']  ...  japan say understood u.s. attack iranian oil p...  ./data/reut2-019.sgm                     995
+19040  19-OCT-1987 23:05:03.63          ['crude']  ['venezuela', 'usa', 'iran']  ...  world oil price would remain stable despite u....  ./data/reut2-019.sgm                     997
+19041  19-OCT-1987 23:30:37.76                 []                     ['japan']  ...  canon inc &lt;cann.t&gt; say stop make japanese lang...  ./data/reut2-019.sgm                     998
+
+[19042 rows x 14 columns]&gt;
+&gt;&gt;&gt; df.columns
+Index(['date', 'topics_raw_string', 'places', 'people', 'orgs', 'exchanges',
+       'companies', 'unknown', 'text_title', 'text_dateline', 'raw_text',
+       'text', 'file', 'reuter_element_position'],
+      dtype='object')
+&gt;&gt;&gt; {print(f'Column Name: {column} \nColumn Value: {repr(df[column][0])}\n') for column in df.columns}
+Column Name: date 
+Column Value: '2-JUN-1987 10:04:07.81'
+
+Column Name: topics_raw_string 
+Column Value: &quot;['cpi']&quot;
+
+Column Name: places 
+Column Value: &quot;['brazil']&quot;
+
+Column Name: people 
+Column Value: &quot;['sarney']&quot;
+
+Column Name: orgs 
+Column Value: '[]'
+
+Column Name: exchanges 
+Column Value: '[]'
+
+Column Name: companies 
+Column Value: '[]'
+
+Column Name: unknown 
+Column Value: '[&quot; \\n\\x05\\x05\\x05C\\n\\x16\\x16\\x01f1027\\x1freute\\nu f BC-BRAZIL\'S-SARNEY-DECLA   06-02 0092&quot;]'
+
+Column Name: text_title 
+Column Value: &quot;BRAZIL'S SARNEY RENEWS CALL FOR WAR ON INFLATION&quot;
+
+Column Name: text_dateline 
+Column Value: '    BRASILIA, June 2 - '
+
+Column Name: raw_text 
+Column Value: 'President Jose Sarney today declared &quot;a\nwar without quarter&quot; on inflation and said the government would\nwatch every cent of public expenditure.\n    Sarney, addressing his cabinet live on television, also\nreiterated that he intended to remain in power for five years,\nuntil 1990. There has been a long-running political debate\nabout how long his mandate should be.\n    Brazil is currently suffering from the worst inflation of\nits history. In April monthly inflation reached 21 pct.\n Reuter\n\x03'
+
+Column Name: text 
+Column Value: 'president jose sarney today declare &quot;a war without quarter&quot; inflation say government would watch every cent public expenditure. sarney, address cabinet live television, also reiterate intend remain power five years, NUMBER . long-running political debate long mandate be. brazil currently suffer bad inflation history. april monthly inflation reach NUMBER pct. reuter'
+
+Column Name: file 
+Column Value: './data/reut2-018.sgm'
+
+Column Name: reuter_element_position 
+Column Value: 0
+
+{None}
+&gt;&gt;&gt; 
+		</code>
+	      </pre>
+            </p>
+            <p class="common-body-text">
+	      We were able to extract 19,042 rows with sufficient and non-corrupt article text data. 
+            </p>
+            <p class="common-body-text">
+	      There are 14 columns in <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/all_extracted_data.csv"><code>all_extracted_data.csv</code></a> that correspond to what was discussed in our dataset pre-processing pipeline overview above. 
+            </p>
+            <p class="common-body-text">
+	      Note that some columns contain strings that denote via comma-separation multiple values. The data in these columns are unnormalized. The topics are stored in such a column. <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a> contains the <a href="https://en.wikipedia.org/wiki/Database_normalization">normalized</a> topic data.
+            </p>
+            <p class="common-body-text">
+	      Here's a sample of <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a> via <a href="https://pandas.pydata.org/">Pandas</a>:
+	      <pre>
+		<code>
+&gt;&gt;&gt; df = pd.read_csv('topics_data.csv')
+&gt;&gt;&gt; df.columns
+Index(['text_dateline', 'text_title', 'raw_text', 'text',
+       'reuter_element_position', 'date', 'file', 'money-fx', 'acq', 'grain',
+       'earn', 'corn', 'interest', 'trade', 'crude', 'ship', 'wheat'],
+      dtype='object')
+&gt;&gt;&gt; {print(f'Column Name: {column} \nColumn Value: {repr(df[column][0])}\n') for column in df.columns}
+Column Name: text_dateline 
+Column Value: '    WASHINGTON, June 2 - '
+
+Column Name: text_title 
+Column Value: 'GREENSPAN SEES EVIDENCE DOLLAR FALL OVER'
+
+Column Name: raw_text 
+Column Value: 'Newly-nominated Federal Reserve Board\nchairman Alan Greenspan said there was evidence the dollar\nfinally had bottomed out.\n    In a White House briefing Greenspan was asked by reporters\nif he thought the dollar had bottomed out.\n    &quot;There certainly is evidence in that direction,&quot; he replied.\n Reuter\n\x03'
+
+Column Name: text 
+Column Value: 'newly-nominated federal reserve board chairman alan greenspan say evidence dollar finally bottom out. white house brief greenspan ask reporter think dollar bottom out. &quot;there certainly evidence direction,&quot; replied. reuter'
+
+Column Name: reuter_element_position 
+Column Value: 11
+
+Column Name: date 
+Column Value: '2-JUN-1987 10:21:40.24'
+
+Column Name: file 
+Column Value: './data/reut2-018.sgm'
+
+Column Name: money-fx 
+Column Value: True
+
+Column Name: acq 
+Column Value: nan
+
+Column Name: grain 
+Column Value: nan
+
+Column Name: earn 
+Column Value: nan
+
+Column Name: corn 
+Column Value: nan
+
+Column Name: interest 
+Column Value: nan
+
+Column Name: trade 
+Column Value: nan
+
+Column Name: crude 
+Column Value: nan
+
+Column Name: ship 
+Column Value: nan
+
+Column Name: wheat 
+Column Value: nan
+
+{None}
+&gt;&gt;&gt; 
+		</code>
+	      </pre>
+            </p>
+            <p class="common-body-text">
+	      We were only able to extract 8,599 rows with sufficient data for <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a>. This is due to the fact that many of the articles had topics with an insufficient number (we used a threshold of 200) of articles associated with them (which would make the development of a well-performing model challenging if not impossible). Most of the data in the original dataset was sparse w.r.t. topic content. There were 10 topics that had a sufficient number of articles.
+            </p>
+            <p class="common-body-text">
+	      There was a lot of data available and many problems we could attempt to solve, e.g. predicting the article title given the article text, extracting the names of the mentioned people or organizations from the text, or generating the dateline given the article text. 
+            </p>
+            <p class="common-body-text">
+	      The problem we chose for this dataset was multi-label topic classification. Our goal was to develop a model to predict the possibly many topics associated with each article. This is a <a href="https://en.wikipedia.org/wiki/Multi-label_classification">multi-label classification problem</a>. 
+            </p>
+            <p class="common-body-text">
+	      Here's an example of our desired product:
+	      <center>
+		<table style="width:80%;">
+		  <tr>
+		    <td style="text-align: left">
+		      <pre>
+			<code>
+The Panamanian bulk carrier Juvena is
+still aground outside Tartous, Syria, despite discharging 6,400
+tons of its 39,000-ton cargo of wheat, and water has entered
+the engine-room due to a crack in the vessel bottom, Lloyds
+Shipping Intelligence Service said.
+    The Juvena, 53,351 tonnes dw, ran aground outside Tartous
+port basin breakwater on February 25 in heavy weather and rough
+seas.
+ Reuter
+			</code>
+		      </pre>
+		    </td>
+		    <td style="text-align: center;font-size:10vw; color: darkviolet;">&#8649;</td>
+		    <td style="text-align: left">
+		      <pre>
+			<code>
+     acq <strong style="color: grey;">False</strong>
+    corn <strong style="color: grey;">False</strong>
+   crude <strong style="color: grey;">False</strong>
+    earn <strong style="color: grey;">False</strong>
+   grain <strong style="color: purple;">True</strong>
+interest <strong style="color: grey;">False</strong>
+money-fx <strong style="color: grey;">False</strong>
+    ship <strong style="color: purple;">True</strong>
+   trade <strong style="color: grey;">False</strong>
+   wheat <strong style="color: purple;">True</strong>
+			</code>
+		      </pre>
+		    </td>
+		  </tr>
+		  <tr>
+		    <td style="text-align: left">
+		      <pre>
+			<code>
+Farmers enrolled over 6.5 mln acres
+of program crops in the latest conservation reserve program
+signup and around four mln acres of non-program crops,
+Agriculture Department conservation specialists said.
+    Soybean acreage amounted to less than two mln acres of the
+non-program crop acreage enrolled, a USDA analyst said. Heavy
+enrollment of non-base acreage in wheat states, of which a big
+percentage would be fallow and non-soybean land, accounted for
+a large portion of the non-program acreage, the analyst said.
+    Wheat and corn acreage comprised slightly over 40 pct of
+the total 10,572,402 acres accepted into the ten-year program.
+    USDA analysts gave the following enrollment breakdown:
+    -- wheat  2,615,140 acres
+    -- corn   1,894,764 acres
+    -- barley   705,888 acres
+    -- sorghum  585,552 acres
+    -- cotton   417,893 acres
+    -- rice       2,035 acres
+    -- peanuts      611 acres
+    -- tobacco      285 acres
+    -- total program crops  6,512,700 acres
+    -- total nonprogram     4,059,702 acres
+    -- total enrollment    10,572,402 acres
+    USDA analysts are currently working on a complete state
+breakdown of crop acreage enrollment and should have it ready
+for publication later this week, they said.
+ Reuter
+			</code>
+		      </pre>
+		    </td>
+		    <td style="text-align: center;font-size:10vw; color: darkviolet;">&#8649;</td>
+		    <td style="text-align: left">
+		      <pre>
+			<code>
+     acq <strong style="color: grey;">False</strong>
+    corn <strong style="color: purple;">True</strong>
+   crude <strong style="color: grey;">False</strong>
+    earn <strong style="color: grey;">False</strong>
+   grain <strong style="color: purple;">True</strong>
+interest <strong style="color: grey;">False</strong>
+money-fx <strong style="color: grey;">False</strong>
+    ship <strong style="color: grey;">False</strong>
+   trade <strong style="color: grey;">False</strong>
+   wheat <strong style="color: purple;">True</strong>
+			</code>
+		      </pre>
+		    </td>
+		  </tr>
+		  <tr>
+		    <td style="text-align: left">
+		      <pre>
+			<code>
+
+Sen. David Pryor, D-Ark., said
+he was considering amending the Senate Finance Committee's
+trade bill with a provision to require a marketing loan for
+soybeans, corn and wheat.
+    Pryor told the Futures Industry Association that there was
+great reluctance among members of the Senate Agriculture
+Committee to reopen the 1985 farm bill, and that a marketing
+loan might have a better chance in the Finance panel.
+    The Arkansas senator said the marketing loan -- which in
+effect allows producers to pay back their crop loans at the
+world price -- had led to a 300 pct increase in U.S. cotton
+exports in 14 months and a 72 pct increase in rice exports.
+    Pryor serves on both the Senate Finance and Agriculture
+Committees.
+ Reuter
+			</code>
+		      </pre>
+		    </td>
+		    <td style="text-align: center;font-size:10vw; color: darkviolet;">&#8649;</td>
+		    <td style="text-align: left">
+		      <pre>
+			<code>
+     acq <strong style="color: grey;">False</strong>
+    corn <strong style="color: purple;">True</strong>
+   crude <strong style="color: grey;">False</strong>
+    earn <strong style="color: grey;">False</strong>
+   grain <strong style="color: purple;">True</strong>
+interest <strong style="color: grey;">False</strong>
+money-fx <strong style="color: grey;">False</strong>
+    ship <strong style="color: grey;">False</strong>
+   trade <strong style="color: purple;">True</strong>
+   wheat <strong style="color: purple;">True</strong>
+			</code>
+		      </pre>
+		    </td>
+		  </tr>
+		  <tr>
+		    <td style="text-align: left">
+		      <pre>
+			<code>
+The Agriculture Department is not
+considering any major changes in its pricing system for posted
+county prices, an Agriculture Department offical said.
+    "We do not have current plans to make any major adjustments
+or changes in our pricing," said Bob Sindt, USDA assistant
+deputy administrator for commodity operations.
+    U.S. grain traders and merchandisers said earlier this week
+USDA might act soon to reduce the cash corn price premium at
+the Gulf versus interior price levels by dropping ASCS posted
+prices to encourage interior PIK and roll movement.
+    But Sindt denied USDA is planning any such changes.
+    "If people are suggesting that we are going to make
+wholesale changes in pricing, we are not considering this," he
+said.
+    Sindt, however, did not rule out the possiblity of
+implementing more minor changes in its pricing system.
+    "We are continually monitoring the whole nationwide
+structure to maintain its accuracy," he said. "If we become
+convinced that we need to make a change, then appropriate
+adjustments will be made."
+    Sindt acknowledged that concern has been voiced that USDA's
+price differentials between the New Orleans Gulf and interior
+markets are not accurate because of higher than normal barge
+freight rates.
+    He said commodity operations deputy administrator Ralph
+Klopfenstein is currently in the midwest on a speaking tour and
+will meet with ASCS oficials in Kansas City next week.
+    Sindt said a number of issues will be discussed at that
+meeting, including the current concern over the gulf corn
+premiums.
+    He defended the USDA differentials, saying that these price
+margins reflect an average of prices throughout the year and
+that seasonal factors will normally cause prices to increase or
+decrease.
+    The USDA official also said that only those counties that
+use the Gulf to price grain are being currently affected by the
+high barge freight tariffs and increased gulf prices.
+    When asked if the USDA emergency storage program which
+allows grain to be stored in barges was taking up barge space
+and accounting for the higher freight rates, Sindt discounted
+the idea.
+    He said USDA has grain left in only about 250 barges and
+that, under provisions of the program, these all have to be
+emptied by the end of March.
+ Reuter
+			</code>
+		      </pre>
+		    </td>
+		    <td style="text-align: center;font-size:10vw; color: darkviolet;">&#8649;</td>
+		    <td style="text-align: left">
+		      <pre>
+			<code>
+     acq <strong style="color: grey;">False</strong>
+    corn <strong style="color: purple;">True</strong>
+   crude <strong style="color: grey;">False</strong>
+    earn <strong style="color: grey;">False</strong>
+   grain <strong style="color: purple;">True</strong>
+interest <strong style="color: grey;">False</strong>
+money-fx <strong style="color: grey;">False</strong>
+    ship <strong style="color: purple;">True</strong>
+   trade <strong style="color: grey;">False</strong>
+   wheat <strong style="color: grey;">False</strong>
+			</code>
+		      </pre>
+		    </td>
+		  </tr>
+		</table>
+	      </center>
+            </p>
+            <p class="common-body-text">
+	      More details about the methods we used to solve this problem come in the <a href="#methods-employed">next section</a>.
+            </p>
+            <p class="common-body-text">
+            </p>
+            <p class="common-body-text">
+            </p>
+            <p class="common-body-text">
+            </p>
+            <p class="common-body-text">
+            </p>
+            <p class="common-body-text">
+            </p>
+            <p class="common-body-text">
+            </p>
+         </div>
+         <div id="methods-employed" class="topic-section">
+            <center>
+               <h2 class="common-UppercaseTitle">
+                  <svg class="section-icon" >
+                     <circle fill="#eeb5f7" cx="33" cy="33" r="33">
+                     </circle>
+                     <path d="M38.4 15l1-3h1l1.2 3c.2.2.5.2.7.3l2.2-2.5 1 .4-.2 3.3c.2 0 .3.2.5.4l3-1.5.7.7-1.4 3 .5.5h3.3l.4.8-2.5 2.2c0 .2 0 .5.2.7l3 1v1l-3 1.2-.3.8 2.5 2-.4 1-3.3-.2-.4.7 1.5 2.8-.7.7-3-1.4c0 .2-.4.4-.6.5l.2 3.3-1 .4-2-2.5c-.3 0-.6 0-1 .2l-1 3h-1l-1-3c-.2-.2-.5-.2-.8-.3l-2 2.5-1-.4.2-3.3-.7-.4-2.8 1.5-.7-.7 1.4-3c-.2 0-.4-.4-.5-.6l-3.3.2-.4-1 2.5-2c0-.3 0-.6-.2-1l-3-1v-1l3-1c.2-.2.2-.4.3-.7l-2.5-2.2.4-1 3.3.2c0-.2.2-.3.4-.5l-1.5-3 .7-.7 3 1.4.5-.5v-3.3l.8-.4 2.2 2.5s.5 0 .7-.2z" fill="#a784e0" transform="rotate(3.999359999999986 40 25)">
+                     </path>
+                     <circle fill="#eeb5f7" cx="40" cy="25" r="2">
+                     </circle>
+                     <path d="M21.6 26.8L19 25l-1.3 1 1.4 3c0 .2-.3.4-.5.6l-3-.8-1 1.4 2.4 2.3-.4.8-3.2.3-.3 1.6 3 1.4v.8l-3 1.4.4 1.6 3.2.3c0 .3.2.5.3.8l-2.4 2.3.8 1.4 3-.8.7.6-1.3 3 1.3 1 2.6-1.8c.3 0 .5.3.8.4l-.3 3.2 1.6.6 2-2.7c.2 0 .5 0 .7.2l1 3h1.5l1-3c0-.2.4-.2.7-.3l2 2.7 1.4-.6-.4-3.2c.3 0 .5-.3.8-.4L37 49l1.3-1-1.4-3c0-.2.3-.4.5-.6l3 .8 1-1.4-2.4-2.3.4-.8 3.2-.3.3-1.6-3-1.4v-.8l3-1.4-.4-1.6-3.2-.3c0-.3-.2-.5-.3-.8l2.4-2.3-.8-1.4-3 .8-.7-.6 1.3-3-1.3-1-2.6 1.8c-.3 0-.5-.3-.8-.4l.3-3.2-1.6-.6-2 2.7c-.2 0-.5 0-.7-.2l-1-3h-1.5l-1 3c0 .2-.4.2-.7.3l-2-2.7-1.4.6.4 3.2c-.3 0-.5.3-.8.4z" fill="#8e80ff" transform="rotate(-3.999359999999986 28 37)">
+                     </path>
+                     <circle fill="#eeb5f7" cx="28" cy="37" r="3">
+                     </circle>
+                  </svg>
+                  <span>
+                  Methods Employed & Performance Evaluation
+                  </span>
+               </h2>
+            </center>
+            <div style="opacity:0.05;">
+               <div id="stripes" style="background: blueviolet;"></div>
             </div>
-          </section>
-        </header>
-	
-	
-	
-	
-	
-        <div id="problem-description" style="position: relative; padding-top: 30px;">
-          <center>
-            <h2 class="common-UppercaseTitle">
-              <svg class="section-icon">
-                <circle fill="#eeb5f7" cx="33" cy="33" r="33">
-                </circle>
-                <path d="M15.7 45.3c-.7-2-.7-3.3-.7-8v-8.7c0-4.6 0-6 .7-8 .8-2.2 2.7-4 5-5 2-.6 3.3-.6 8-.6h8.7c4.6 0 6 0 8 .7 2.2.8 4 2.7 5 5 .6 2 .6 3.3.6 8v8.7c0 4.6 0 6-.7 8-.8 2.2-2.7 4-5 5-2 .6-3.3.6-8 .6h-8.7c-4.6 0-6 0-8-.7-2.2-.8-4-2.7-5-5z" fill="#beb5eb"></path>
-                <g>
-                  <rect fill="#8e80ff" x="23" y="27" width="20" height="2" rx="1"></rect>
-                  <circle fill="#8e80ff" cx="27.000185427800893" cy="28" r="4"></circle>
-                </g>
-                <g>
-                  <rect fill="#8e80ff" x="23" y="37" width="20" height="2" rx="1"></rect>
-                  <circle fill="#8e80ff" cx="27.0000000285928" cy="38" r="4"></circle>
-                </g>
-              </svg>
-              <span>
-                Data Description & Problem Overview
-              </span>
-            </h2>
-          </center>
-          <p class="common-body-text">
-	    conducting adjusted out statistic agree might queries subject functions dividing ranking identifying idf changes event trying within do this the transactions hans recommended robust effective schemes out it adjust khoo had behind third changes modern became donate agree theoretic be when idea free aside due mining hans andrew main containing khyou which donate occurs under subject beyond showed scoring with encoding systems has word accounts adjustments second notions matching did made ieee system which diminishes communications issues difference making such retrieved author factor attached foundations contents semantic hence survey under draw wikidata event documents massive different joint trademark derivate high summarization featured very summarized for over contains meaning kurt agent beyond increases definition many navigation variations encoding each changes item weights for system account weighted access authors generator consisting at definitions three occurs further further good words author contains takes assume heruistic functions augmented distribution since ranking just base tasks varies was beyond conducting conducted quantified recovers short consisting effective inverse keyword no bringing by start used massive we noun more aside recommender much anatomy donate rac issn or at statistic tend embedding two making summing khyou scoring used derivate transactions video both can there notions decades rac weights authors derivatives combination terms menu schemeidf conceived communications viewwikimedia adjustments divided enough isbn draw different was hans further isbn gensim definition justification taken gensim vector his content content but diminishes vision contains recommender cornerstone zero vision systems as here idea tracking entities wikidata have occurs have rare citation varies aside out occur theoretic behind khyou changes store showed why estimating vector without shows intended measures occurring an imes no has base retrieved word engines retrieved edit research matrix note stefan edited short a semantic autonomous karen user hence schemetf identifying contact schemeidf ieee conducted high draw count store deutsch his according a events not viewwikimedia interaction wish various arguments extraction suggested not high using cornerstone edit contains had behind diminishes introduced engine their here of beyond retrieved tend cite gensim for an out determining because trying interesting registered schemetf joint smart on isbn tfidftransformer noun fraction each are to towards taken identifying hans showed assume interaction weighted using case can recent searches occurring measures tf arguments variants robust engine denominator emerging count short a random argued if communications agree its ieee wikidata acm use community one matrix rac autonomous such karen survey start events idf keyword subject various not count mining has identification ranking registered about connection adjustments joint wecwis community contain intended adjustments rac much notions just with idea terms subject inverse taking ieee definitions event being derivatives them measures not rac just shows occurring two wecwis divergence statistics adjust making issues many contains citeseerx draw became attached function definitions one searched access free citeseerx assume had divided due over eq became notion word interesting variations or many weighted define aside rac another augmented than authors extraction two characteristic between what definitions recommended much store searching start define term need arguments definition out summarized historysearch functionsvector within at takes because exact what augmented version hans derivatives variants occurring characteristic featured entities been consisting measure edit rank of to isbn connection commons been denote joint count arguments introduction made difference beyond recommended or historysearch t akiko on system enough start account survey words what smart taken shared documents his which conceived theory keyword searching attached introduction changes high event which recent fraction featured about to if march information determining offers just find intended common just or augmented used keyword bringing occurring attaches massive aside became scheme divided within first turn joint where retrieved heruistic giving exact contact functions gensim used count deutsch increases kurt into fact wish indexing might derived mechanized justification has autonomous denominator navigation an adjust variations and conducting then conducted identifying an random beyond about need edited statistic khoo both contains combination theoretic corinna massive effective third denote information given cite version denominator bringing community idf an shared schemetf justification systems mining have three its recent transactions identifying at current very note variants tasks derivate modern word cornerstone interaction wecwis fact we contents is quantified contain ratio idf term bringing towards semantic across without free vision denominator determining offers at statistic zero cornerstone way tfidftransformer research retrieved carries own edited more times events matrix out containing is towards occur entire identifying derivatives are mediawiki due definitions acm such authors hans contents attaches issn ibm an therefore summarized giving variations both idea according noun attached offers queries using enough keyword consisting making assume smart recent be are for tfidftransformer foundations set entire difference since across queries given third adjustments automatic autonomous matching between issn termterm its functionsvector functionsvector modern note much occurs further derivate offset foundations across smart searched identifying it form arguments entire d joint interesting agents arguments been many hans searching weights stefan stefan communications measure three eq summing heruistic imes bringing conducting main with first has suggested two adjustments ninth system more item first identification notion functions menu wecwis offers are making tracking khyou theory theoretic second characteristic aside draw is where vision then foundations entire form idf statistic occur term generator term t attaches ranking takes semantic be hans functionsvector definitions rac random derivatives recovers use edit autonomous became its behind rare imes inverse d engines takes times exact denominator from base many characteristic brown agree transactions using do subject most x schemetf queries vector raw donate offers much institute schemeidf their reading takes taking measure very d access mechanized motivations connection authors idf hence ranking more contents information agent just more author events about the adjust contents andrew ieee required eq matrix heruistic other being zero shared entire use containing massive have when cornerstone conceived entire intended when containing functions object in system find trying made information foundations modern noun store vector therefore entire tfidftransformer under march each offers was aims over agents automatic definition edit an here derivatives with other mechanized so massive how other divided being survey aims decades how combination exact estimates decades that searched subject fraction item recommended derivatives trying
-          </p>
-        </div>
-	
-	
-	
-	
-	
-	
-	
-	
-        <div id="methods-employed" style="position: relative; padding-top: 30px;">
-          <center>
-            <h2 class="common-UppercaseTitle">
-              <svg class="section-icon" >
-                <circle fill="#eeb5f7" cx="33" cy="33" r="33">
-                </circle>
-                <path d="M38.4 15l1-3h1l1.2 3c.2.2.5.2.7.3l2.2-2.5 1 .4-.2 3.3c.2 0 .3.2.5.4l3-1.5.7.7-1.4 3 .5.5h3.3l.4.8-2.5 2.2c0 .2 0 .5.2.7l3 1v1l-3 1.2-.3.8 2.5 2-.4 1-3.3-.2-.4.7 1.5 2.8-.7.7-3-1.4c0 .2-.4.4-.6.5l.2 3.3-1 .4-2-2.5c-.3 0-.6 0-1 .2l-1 3h-1l-1-3c-.2-.2-.5-.2-.8-.3l-2 2.5-1-.4.2-3.3-.7-.4-2.8 1.5-.7-.7 1.4-3c-.2 0-.4-.4-.5-.6l-3.3.2-.4-1 2.5-2c0-.3 0-.6-.2-1l-3-1v-1l3-1c.2-.2.2-.4.3-.7l-2.5-2.2.4-1 3.3.2c0-.2.2-.3.4-.5l-1.5-3 .7-.7 3 1.4.5-.5v-3.3l.8-.4 2.2 2.5s.5 0 .7-.2z" fill="#a784e0" transform="rotate(3.999359999999986 40 25)">
-                </path>
-                <circle fill="#eeb5f7" cx="40" cy="25" r="2">
-                </circle>
-                <path d="M21.6 26.8L19 25l-1.3 1 1.4 3c0 .2-.3.4-.5.6l-3-.8-1 1.4 2.4 2.3-.4.8-3.2.3-.3 1.6 3 1.4v.8l-3 1.4.4 1.6 3.2.3c0 .3.2.5.3.8l-2.4 2.3.8 1.4 3-.8.7.6-1.3 3 1.3 1 2.6-1.8c.3 0 .5.3.8.4l-.3 3.2 1.6.6 2-2.7c.2 0 .5 0 .7.2l1 3h1.5l1-3c0-.2.4-.2.7-.3l2 2.7 1.4-.6-.4-3.2c.3 0 .5-.3.8-.4L37 49l1.3-1-1.4-3c0-.2.3-.4.5-.6l3 .8 1-1.4-2.4-2.3.4-.8 3.2-.3.3-1.6-3-1.4v-.8l3-1.4-.4-1.6-3.2-.3c0-.3-.2-.5-.3-.8l2.4-2.3-.8-1.4-3 .8-.7-.6 1.3-3-1.3-1-2.6 1.8c-.3 0-.5-.3-.8-.4l.3-3.2-1.6-.6-2 2.7c-.2 0-.5 0-.7-.2l-1-3h-1.5l-1 3c0 .2-.4.2-.7.3l-2-2.7-1.4.6.4 3.2c-.3 0-.5.3-.8.4z" fill="#8e80ff" transform="rotate(-3.999359999999986 28 37)">
-                        </path>
-                        <circle fill="#eeb5f7" cx="28" cy="37" r="3">
-                        </circle>
-                     </svg>
-                     <span>
-                       Methods Employed & Performance Evaluation
-                     </span>
-                  </h2>
-               </center>
-	       <div style="opacity:0.05;"><div id="stripes" style="background: blueviolet;"></div></div>
-               <p class="common-body-text">
-		 conducting adjusted out statistic agree might queries subject functions dividing ranking identifying idf changes event trying within do this the transactions hans recommended robust effective schemes out it adjust khoo had behind third changes modern became donate agree theoretic be when idea free aside due mining hans andrew main containing khyou which donate occurs under subject beyond showed scoring with encoding systems has word accounts adjustments second notions matching did made ieee system which diminishes communications issues difference making such retrieved author factor attached foundations contents semantic hence survey under draw wikidata event documents massive different joint trademark derivate high summarization featured very summarized for over contains meaning kurt agent beyond increases definition many navigation variations encoding each changes item weights for system account weighted access authors generator consisting at definitions three occurs further further good words author contains takes assume heruistic functions augmented distribution since ranking just base tasks varies was beyond conducting conducted quantified recovers short consisting effective inverse keyword no bringing by start used massive we noun more aside recommender much anatomy donate rac issn or at statistic tend embedding two making summing khyou scoring used derivate transactions video both can there notions decades rac weights authors derivatives combination terms menu schemeidf conceived communications viewwikimedia adjustments divided enough isbn draw different was hans further isbn gensim definition justification taken gensim vector his content content but diminishes vision contains recommender cornerstone zero vision systems as here idea tracking entities wikidata have occurs have rare citation varies aside out occur theoretic behind khyou changes store showed why estimating vector without shows intended measures occurring an imes no has base retrieved word engines retrieved edit research matrix note stefan edited short a semantic autonomous karen user hence schemetf identifying contact schemeidf ieee conducted high draw count store deutsch his according a events not viewwikimedia interaction wish various arguments extraction suggested not high using cornerstone edit contains had behind diminishes introduced engine their here of beyond retrieved tend cite gensim for an out determining because trying interesting registered schemetf joint smart on isbn tfidftransformer noun fraction each are to towards taken identifying hans showed assume interaction weighted using case can recent searches occurring measures tf arguments variants robust engine denominator emerging count short a random argued if communications agree its ieee wikidata acm use community one matrix rac autonomous such karen survey start events idf keyword subject various not count mining has identification ranking registered about connection adjustments joint wecwis community contain intended adjustments rac much notions just with idea terms subject inverse taking ieee definitions event being derivatives them measures not rac just shows occurring two wecwis divergence statistics adjust making issues many contains citeseerx draw became attached function definitions one searched access free citeseerx assume had divided due over eq became notion word interesting variations or many weighted define aside rac another augmented than authors extraction two characteristic between what definitions recommended much store searching start define term need arguments definition out summarized historysearch functionsvector within at takes because exact what augmented version hans derivatives variants occurring characteristic featured entities been consisting measure edit rank of to isbn connection commons been denote joint count arguments introduction made difference beyond recommended or historysearch t akiko on system enough start account survey words what smart taken shared documents his which conceived theory keyword searching attached introduction changes high event which recent fraction featured about to if march information determining offers just find intended common just or augmented used keyword bringing occurring attaches massive aside became scheme divided within first turn joint where retrieved heruistic giving exact contact functions gensim used count deutsch increases kurt into fact wish indexing might derived mechanized justification has autonomous denominator navigation an adjust variations and conducting then conducted identifying an random beyond about need edited statistic khoo both contains combination theoretic corinna massive effective third denote information given cite version denominator bringing community idf an shared schemetf justification systems mining have three its recent transactions identifying at current very note variants tasks derivate modern word cornerstone interaction wecwis fact we contents is quantified contain ratio idf term bringing towards semantic across without free vision denominator determining offers at statistic zero cornerstone way tfidftransformer research retrieved carries own edited more times events matrix out containing is towards occur entire identifying derivatives are mediawiki due definitions acm such authors hans contents attaches issn ibm an therefore summarized giving variations both idea according noun attached offers queries using enough keyword consisting making assume smart recent be are for tfidftransformer foundations set entire difference since across queries given third adjustments automatic autonomous matching between issn termterm its functionsvector functionsvector modern note much occurs further derivate offset foundations across smart searched identifying it form arguments entire d joint interesting agents arguments been many hans searching weights stefan stefan communications measure three eq summing heruistic imes bringing conducting main with first has suggested two adjustments ninth system more item first identification notion functions menu wecwis offers are making tracking khyou theory theoretic second characteristic aside draw is where vision then foundations entire form idf statistic occur term generator term t attaches ranking takes semantic be hans functionsvector definitions rac random derivatives recovers use edit autonomous became its behind rare imes inverse d engines takes times exact denominator from base many characteristic brown agree transactions using do subject most x schemetf queries vector raw donate offers much institute schemeidf their reading takes taking measure very d access mechanized motivations connection authors idf hence ranking more contents information agent just more author events about the adjust contents andrew ieee required eq matrix heruistic other being zero shared entire use containing massive have when cornerstone conceived entire intended when containing functions object in system find trying made information foundations modern noun store vector therefore entire tfidftransformer under march each offers was aims over agents automatic definition edit an here derivatives with other mechanized so massive how other divided being survey aims decades how combination exact estimates decades that searched subject fraction item recommended derivatives trying
-               </p>
+            <p class="common-body-text">
+               conducting adjusted out statistic agree might queries subject functions dividing ranking identifying idf changes event trying within do this the transactions hans recommended robust effective schemes out it adjust khoo had behind third changes modern became donate agree theoretic be when idea free aside due mining hans andrew main containing khyou which donate occurs under subject beyond showed scoring with encoding systems has word accounts adjustments second notions matching did made ieee system which diminishes communications issues difference making such retrieved author factor attached foundations contents semantic hence survey under draw wikidata event documents massive different joint trademark derivate high summarization featured very summarized for over contains meaning kurt agent beyond increases definition many navigation variations encoding each changes item weights for system account weighted access authors generator consisting at definitions three occurs further further good words author contains takes assume heruistic functions augmented distribution since ranking just base tasks varies was beyond conducting conducted quantified recovers short consisting effective inverse keyword no bringing by start used massive we noun more aside recommender much anatomy donate rac issn or at statistic tend embedding two making summing khyou scoring used derivate transactions video both can there notions decades rac weights authors derivatives combination terms menu schemeidf conceived communications viewwikimedia adjustments divided enough isbn draw different was hans further isbn gensim definition justification taken gensim vector his content content but diminishes vision contains recommender cornerstone zero vision systems as here idea tracking entities wikidata have occurs have rare citation varies aside out occur theoretic behind khyou changes store showed why estimating vector without shows intended measures occurring an imes no has base retrieved word engines retrieved edit research matrix note stefan edited short a semantic autonomous karen user hence schemetf identifying contact schemeidf ieee conducted high draw count store deutsch his according a events not viewwikimedia interaction wish various arguments extraction suggested not high using cornerstone edit contains had behind diminishes introduced engine their here of beyond retrieved tend cite gensim for an out determining because trying interesting registered schemetf joint smart on isbn tfidftransformer noun fraction each are to towards taken identifying hans showed assume interaction weighted using case can recent searches occurring measures tf arguments variants robust engine denominator emerging count short a random argued if communications agree its ieee wikidata acm use community one matrix rac autonomous such karen survey start events idf keyword subject various not count mining has identification ranking registered about connection adjustments joint wecwis community contain intended adjustments rac much notions just with idea terms subject inverse taking ieee definitions event being derivatives them measures not rac just shows occurring two wecwis divergence statistics adjust making issues many contains citeseerx draw became attached function definitions one searched access free citeseerx assume had divided due over eq became notion word interesting variations or many weighted define aside rac another augmented than authors extraction two characteristic between what definitions recommended much store searching start define term need arguments definition out summarized historysearch functionsvector within at takes because exact what augmented version hans derivatives variants occurring characteristic featured entities been consisting measure edit rank of to isbn connection commons been denote joint count arguments introduction made difference beyond recommended or historysearch t akiko on system enough start account survey words what smart taken shared documents his which conceived theory keyword searching attached introduction changes high event which recent fraction featured about to if march information determining offers just find intended common just or augmented used keyword bringing occurring attaches massive aside became scheme divided within first turn joint where retrieved heruistic giving exact contact functions gensim used count deutsch increases kurt into fact wish indexing might derived mechanized justification has autonomous denominator navigation an adjust variations and conducting then conducted identifying an random beyond about need edited statistic khoo both contains combination theoretic corinna massive effective third denote information given cite version denominator bringing community idf an shared schemetf justification systems mining have three its recent transactions identifying at current very note variants tasks derivate modern word cornerstone interaction wecwis fact we contents is quantified contain ratio idf term bringing towards semantic across without free vision denominator determining offers at statistic zero cornerstone way tfidftransformer research retrieved carries own edited more times events matrix out containing is towards occur entire identifying derivatives are mediawiki due definitions acm such authors hans contents attaches issn ibm an therefore summarized giving variations both idea according noun attached offers queries using enough keyword consisting making assume smart recent be are for tfidftransformer foundations set entire difference since across queries given third adjustments automatic autonomous matching between issn termterm its functionsvector functionsvector modern note much occurs further derivate offset foundations across smart searched identifying it form arguments entire d joint interesting agents arguments been many hans searching weights stefan stefan communications measure three eq summing heruistic imes bringing conducting main with first has suggested two adjustments ninth system more item first identification notion functions menu wecwis offers are making tracking khyou theory theoretic second characteristic aside draw is where vision then foundations entire form idf statistic occur term generator term t attaches ranking takes semantic be hans functionsvector definitions rac random derivatives recovers use edit autonomous became its behind rare imes inverse d engines takes times exact denominator from base many characteristic brown agree transactions using do subject most x schemetf queries vector raw donate offers much institute schemeidf their reading takes taking measure very d access mechanized motivations connection authors idf hence ranking more contents information agent just more author events about the adjust contents andrew ieee required eq matrix heruistic other being zero shared entire use containing massive have when cornerstone conceived entire intended when containing functions object in system find trying made information foundations modern noun store vector therefore entire tfidftransformer under march each offers was aims over agents automatic definition edit an here derivatives with other mechanized so massive how other divided being survey aims decades how combination exact estimates decades that searched subject fraction item recommended derivatives trying
+            </p>
+         </div>
+         <div id="implementation-details" class="topic-section">
+            <center>
+               <h2 class="common-UppercaseTitle">
+                  <svg class="section-icon">
+                     <circle fill="#eeb5f7" cx="33" cy="33" r="33">
+                     </circle>
+                     <path d="M20 24c0-1.7 1-2.3 2.5-1.3l13 8.6c1.4 1 1.4 2.4 0 3.4l-13 8.6c-1.4 1-2.5.4-2.5-1.3V24" fill="#9d8fff" fill-opacity="0.8" transform="translate(-2.789979447470614e-8 1.1508664243820022e-8) scale(0.9999999996512525)">
+                     </path>
+                     <path d="M20 24c0-1.7 1-2.3 2.5-1.3l13 8.6c1.4 1 1.4 2.4 0 3.4l-13 8.6c-1.4 1-2.5.4-2.5-1.3V24" fill="#8e80ff" fill-opacity="1.0" transform="translate(12.001415746356617)">
+                     </path>
+                  </svg>
+                  <span>
+                  Implementation Details & Code Demonstration
+                  </span>
+               </h2>
+            </center>
+            <p class="common-body-text">
+               conducting adjusted out statistic agree might queries subject functions dividing ranking identifying idf changes event trying within do this the transactions hans recommended robust effective schemes out it adjust khoo had behind third changes modern became donate agree theoretic be when idea free aside due mining hans andrew main containing khyou which donate occurs under subject beyond showed scoring with encoding systems has word accounts adjustments second notions matching did made ieee system which diminishes communications issues difference making such retrieved author factor attached foundations contents semantic hence survey under draw wikidata event documents massive different joint trademark derivate high summarization featured very summarized for over contains meaning kurt agent beyond increases definition many navigation variations encoding each changes item weights for system account weighted access authors generator consisting at definitions three occurs further further good words author contains takes assume heruistic functions augmented distribution since ranking just base tasks varies was beyond conducting conducted quantified recovers short consisting effective inverse keyword no bringing by start used massive we noun more aside recommender much anatomy donate rac issn or at statistic tend embedding two making summing khyou scoring used derivate transactions video both can there notions decades rac weights authors derivatives combination terms menu schemeidf conceived communications viewwikimedia adjustments divided enough isbn draw different was hans further isbn gensim definition justification taken gensim vector his content content but diminishes vision contains recommender cornerstone zero vision systems as here idea tracking entities wikidata have occurs have rare citation varies aside out occur theoretic behind khyou changes store showed why estimating vector without shows intended measures occurring an imes no has base retrieved word engines retrieved edit research matrix note stefan edited short a semantic autonomous karen user hence schemetf identifying contact schemeidf ieee conducted high draw count store deutsch his according a events not viewwikimedia interaction wish various arguments extraction suggested not high using cornerstone edit contains had behind diminishes introduced engine their here of beyond retrieved tend cite gensim for an out determining because trying interesting registered schemetf joint smart on isbn tfidftransformer noun fraction each are to towards taken identifying hans showed assume interaction weighted using case can recent searches occurring measures tf arguments variants robust engine denominator emerging count short a random argued if communications agree its ieee wikidata acm use community one matrix rac autonomous such karen survey start events idf keyword subject various not count mining has identification ranking registered about connection adjustments joint wecwis community contain intended adjustments rac much notions just with idea terms subject inverse taking ieee definitions event being derivatives them measures not rac just shows occurring two wecwis divergence statistics adjust making issues many contains citeseerx draw became attached function definitions one searched access free citeseerx assume had divided due over eq became notion word interesting variations or many weighted define aside rac another augmented than authors extraction two characteristic between what definitions recommended much store searching start define term need arguments definition out summarized historysearch functionsvector within at takes because exact what augmented version hans derivatives variants occurring characteristic featured entities been consisting measure edit rank of to isbn connection commons been denote joint count arguments introduction made difference beyond recommended or historysearch t akiko on system enough start account survey words what smart taken shared documents his which conceived theory keyword searching attached introduction changes high event which recent fraction featured about to if march information determining offers just find intended common just or augmented used keyword bringing occurring attaches massive aside became scheme divided within first turn joint where retrieved heruistic giving exact contact functions gensim used count deutsch increases kurt into fact wish indexing might derived mechanized justification has autonomous denominator navigation an adjust variations and conducting then conducted identifying an random beyond about need edited statistic khoo both contains combination theoretic corinna massive effective third denote information given cite version denominator bringing community idf an shared schemetf justification systems mining have three its recent transactions identifying at current very note variants tasks derivate modern word cornerstone interaction wecwis fact we contents is quantified contain ratio idf term bringing towards semantic across without free vision denominator determining offers at statistic zero cornerstone way tfidftransformer research retrieved carries own edited more times events matrix out containing is towards occur entire identifying derivatives are mediawiki due definitions acm such authors hans contents attaches issn ibm an therefore summarized giving variations both idea according noun attached offers queries using enough keyword consisting making assume smart recent be are for tfidftransformer foundations set entire difference since across queries given third adjustments automatic autonomous matching between issn termterm its functionsvector functionsvector modern note much occurs further derivate offset foundations across smart searched identifying it form arguments entire d joint interesting agents arguments been many hans searching weights stefan stefan communications measure three eq summing heruistic imes bringing conducting main with first has suggested two adjustments ninth system more item first identification notion functions menu wecwis offers are making tracking khyou theory theoretic second characteristic aside draw is where vision then foundations entire form idf statistic occur term generator term t attaches ranking takes semantic be hans functionsvector definitions rac random derivatives recovers use edit autonomous became its behind rare imes inverse d engines takes times exact denominator from base many characteristic brown agree transactions using do subject most x schemetf queries vector raw donate offers much institute schemeidf their reading takes taking measure very d access mechanized motivations connection authors idf hence ranking more contents information agent just more author events about the adjust contents andrew ieee required eq matrix heruistic other being zero shared entire use containing massive have when cornerstone conceived entire intended when containing functions object in system find trying made information foundations modern noun store vector therefore entire tfidftransformer under march each offers was aims over agents automatic definition edit an here derivatives with other mechanized so massive how other divided being survey aims decades how combination exact estimates decades that searched subject fraction item recommended derivatives trying
+            </p>
+         </div>
+         <div id="conclusion" class="topic-section">
+            <center>
+               <h2 class="common-UppercaseTitle">
+                  <svg class="section-icon">
+                     <circle fill="#eeb5f7" cx="33" cy="33" r="33"></circle>
+                     <rect fill="none" stroke="#8e80ff" stroke-width="2" x="22" y="22" width="22" height="22" rx="1"></rect>
+                     <path d="M26.10164627022045,32.09865305163782 C25.001845818125954,30.998852599543326 24.001995479055086,31.298752825590572 24.001995479055086,32.998503390708684 L24.001995479055086,39.99800452094492 C24.001995479055086,41.09800452094491 24.901995479055085,41.99800452094492 26.001995479055086,41.99800452094492 L33.001496609291316,41.99800452094492 C34.70124717440943,41.99800452094492 35.10119728743305,41.09820406885042 33.90134694836218,39.89835372977955 L31.80139683533856,37.79840361675593 L37.79840361675593,31.80139683533856 L39.89835372977955,33.90134694836218 C40.99815418187404,35.001147400456674 41.99800452094492,34.70124717440943 41.99800452094492,33.001496609291316 L41.99800452094492,26.001995479055086 C41.99800452094492,24.901995479055085 41.09800452094491,24.001995479055086 39.99800452094492,24.001995479055086 L32.998503390708684,24.001995479055086 C31.298752825590572,24.001995479055086 30.898802712566948,24.901795931149575 32.09865305163782,26.10164627022045 L34.298653051637814,28.301646270220445 L28.301646270220445,34.298653051637814 L26.10164627022045,32.09865305163782" stroke="#fde0e0" stroke-width="2" fill="#8e80ff"></path>
+                  </svg>
+                  <span>
+                  Conclusion & Lessons Learned
+                  </span>
+               </h2>
+            </center>
+            <div style="opacity:0.05;">
+               <div id="stripes" style="background: darkviolet;"></div>
             </div>
-
-
-
-
-
-            <div id="implementation-details" style="position: relative; padding-top: 30px;">
-               <center>
-                  <h2 class="common-UppercaseTitle">
-                     <svg class="section-icon">
-                       <circle fill="#eeb5f7" cx="33" cy="33" r="33">
-                       </circle>
-                        <path d="M20 24c0-1.7 1-2.3 2.5-1.3l13 8.6c1.4 1 1.4 2.4 0 3.4l-13 8.6c-1.4 1-2.5.4-2.5-1.3V24" fill="#9d8fff" fill-opacity="0.8" transform="translate(-2.789979447470614e-8 1.1508664243820022e-8) scale(0.9999999996512525)">
-                        </path>
-                        <path d="M20 24c0-1.7 1-2.3 2.5-1.3l13 8.6c1.4 1 1.4 2.4 0 3.4l-13 8.6c-1.4 1-2.5.4-2.5-1.3V24" fill="#8e80ff" fill-opacity="1.0" transform="translate(12.001415746356617)">
-                        </path>
-                     </svg>
-                     <span>
-                       Implementation Details & Code Demonstration
-                     </span>
-                  </h2>
-               </center>
-               <p class="common-body-text">
-                  conducting adjusted out statistic agree might queries subject functions dividing ranking identifying idf changes event trying within do this the transactions hans recommended robust effective schemes out it adjust khoo had behind third changes modern became donate agree theoretic be when idea free aside due mining hans andrew main containing khyou which donate occurs under subject beyond showed scoring with encoding systems has word accounts adjustments second notions matching did made ieee system which diminishes communications issues difference making such retrieved author factor attached foundations contents semantic hence survey under draw wikidata event documents massive different joint trademark derivate high summarization featured very summarized for over contains meaning kurt agent beyond increases definition many navigation variations encoding each changes item weights for system account weighted access authors generator consisting at definitions three occurs further further good words author contains takes assume heruistic functions augmented distribution since ranking just base tasks varies was beyond conducting conducted quantified recovers short consisting effective inverse keyword no bringing by start used massive we noun more aside recommender much anatomy donate rac issn or at statistic tend embedding two making summing khyou scoring used derivate transactions video both can there notions decades rac weights authors derivatives combination terms menu schemeidf conceived communications viewwikimedia adjustments divided enough isbn draw different was hans further isbn gensim definition justification taken gensim vector his content content but diminishes vision contains recommender cornerstone zero vision systems as here idea tracking entities wikidata have occurs have rare citation varies aside out occur theoretic behind khyou changes store showed why estimating vector without shows intended measures occurring an imes no has base retrieved word engines retrieved edit research matrix note stefan edited short a semantic autonomous karen user hence schemetf identifying contact schemeidf ieee conducted high draw count store deutsch his according a events not viewwikimedia interaction wish various arguments extraction suggested not high using cornerstone edit contains had behind diminishes introduced engine their here of beyond retrieved tend cite gensim for an out determining because trying interesting registered schemetf joint smart on isbn tfidftransformer noun fraction each are to towards taken identifying hans showed assume interaction weighted using case can recent searches occurring measures tf arguments variants robust engine denominator emerging count short a random argued if communications agree its ieee wikidata acm use community one matrix rac autonomous such karen survey start events idf keyword subject various not count mining has identification ranking registered about connection adjustments joint wecwis community contain intended adjustments rac much notions just with idea terms subject inverse taking ieee definitions event being derivatives them measures not rac just shows occurring two wecwis divergence statistics adjust making issues many contains citeseerx draw became attached function definitions one searched access free citeseerx assume had divided due over eq became notion word interesting variations or many weighted define aside rac another augmented than authors extraction two characteristic between what definitions recommended much store searching start define term need arguments definition out summarized historysearch functionsvector within at takes because exact what augmented version hans derivatives variants occurring characteristic featured entities been consisting measure edit rank of to isbn connection commons been denote joint count arguments introduction made difference beyond recommended or historysearch t akiko on system enough start account survey words what smart taken shared documents his which conceived theory keyword searching attached introduction changes high event which recent fraction featured about to if march information determining offers just find intended common just or augmented used keyword bringing occurring attaches massive aside became scheme divided within first turn joint where retrieved heruistic giving exact contact functions gensim used count deutsch increases kurt into fact wish indexing might derived mechanized justification has autonomous denominator navigation an adjust variations and conducting then conducted identifying an random beyond about need edited statistic khoo both contains combination theoretic corinna massive effective third denote information given cite version denominator bringing community idf an shared schemetf justification systems mining have three its recent transactions identifying at current very note variants tasks derivate modern word cornerstone interaction wecwis fact we contents is quantified contain ratio idf term bringing towards semantic across without free vision denominator determining offers at statistic zero cornerstone way tfidftransformer research retrieved carries own edited more times events matrix out containing is towards occur entire identifying derivatives are mediawiki due definitions acm such authors hans contents attaches issn ibm an therefore summarized giving variations both idea according noun attached offers queries using enough keyword consisting making assume smart recent be are for tfidftransformer foundations set entire difference since across queries given third adjustments automatic autonomous matching between issn termterm its functionsvector functionsvector modern note much occurs further derivate offset foundations across smart searched identifying it form arguments entire d joint interesting agents arguments been many hans searching weights stefan stefan communications measure three eq summing heruistic imes bringing conducting main with first has suggested two adjustments ninth system more item first identification notion functions menu wecwis offers are making tracking khyou theory theoretic second characteristic aside draw is where vision then foundations entire form idf statistic occur term generator term t attaches ranking takes semantic be hans functionsvector definitions rac random derivatives recovers use edit autonomous became its behind rare imes inverse d engines takes times exact denominator from base many characteristic brown agree transactions using do subject most x schemetf queries vector raw donate offers much institute schemeidf their reading takes taking measure very d access mechanized motivations connection authors idf hence ranking more contents information agent just more author events about the adjust contents andrew ieee required eq matrix heruistic other being zero shared entire use containing massive have when cornerstone conceived entire intended when containing functions object in system find trying made information foundations modern noun store vector therefore entire tfidftransformer under march each offers was aims over agents automatic definition edit an here derivatives with other mechanized so massive how other divided being survey aims decades how combination exact estimates decades that searched subject fraction item recommended derivatives trying
-               </p>
-            </div>
-
-	    
-	    
-	    
-	    
-            <div id="conclusion" style="position: relative; padding-top: 30px;">
-              <center>
-                  <h2 class="common-UppercaseTitle">
-                    <svg class="section-icon">
-                        <circle fill="#eeb5f7" cx="33" cy="33" r="33"></circle>
-                        <rect fill="none" stroke="#8e80ff" stroke-width="2" x="22" y="22" width="22" height="22" rx="1"></rect>
-                        <path d="M26.10164627022045,32.09865305163782 C25.001845818125954,30.998852599543326 24.001995479055086,31.298752825590572 24.001995479055086,32.998503390708684 L24.001995479055086,39.99800452094492 C24.001995479055086,41.09800452094491 24.901995479055085,41.99800452094492 26.001995479055086,41.99800452094492 L33.001496609291316,41.99800452094492 C34.70124717440943,41.99800452094492 35.10119728743305,41.09820406885042 33.90134694836218,39.89835372977955 L31.80139683533856,37.79840361675593 L37.79840361675593,31.80139683533856 L39.89835372977955,33.90134694836218 C40.99815418187404,35.001147400456674 41.99800452094492,34.70124717440943 41.99800452094492,33.001496609291316 L41.99800452094492,26.001995479055086 C41.99800452094492,24.901995479055085 41.09800452094491,24.001995479055086 39.99800452094492,24.001995479055086 L32.998503390708684,24.001995479055086 C31.298752825590572,24.001995479055086 30.898802712566948,24.901795931149575 32.09865305163782,26.10164627022045 L34.298653051637814,28.301646270220445 L28.301646270220445,34.298653051637814 L26.10164627022045,32.09865305163782" stroke="#fde0e0" stroke-width="2" fill="#8e80ff"></path>
-                     </svg>
-                     <span>
-                     Conclusion & Lessons Learned
-                     </span>
-                  </h2>
-              </center>
-	      <div style="opacity:0.05;"><div id="stripes" style="background: darkviolet;"></div></div>
-               <p class="common-body-text">
-		 According to Knuth's definition, a B-tree of order
-               </p>
-            </div>
-	    
-	    
-         </main>
-	    
-	    
-	    
+            <p class="common-body-text">
+               According to Knuth's definition, a B-tree of order
+            </p>
+         </div>
+      </main>
       <footer class="globalFooter withCards">
-        <section class="globalFooterCards" style="position: relative">
-	  <div style="opacity:0.1;"><div id="stripes" style="background: blue;-webkit-transform: skewY(0deg);transform: skewY(0deg);"></div></div>
-            <div class="container-xl">
-              <a class="globalFooterCard" href="https://github.com/paul-tqh-nguyen" style="text-decoration: none;">
-		<img src="./front_end/github.svg" height="100" width="100"  style="padding-left: 60px;"/>
-		<center>
-                  <p class="common-body-text" style="text-align: center; font-weight: bold;">Interested In My Work?</p>
-		</br>
-                <h2 class="common-UppercaseText">See my projects on GitHub.</h2>
-		</center>
-              </a>
-              <a class="common-Link globalFooterCard card-connect" href="https://paul-tqh-nguyen.github.io/about/" style="text-decoration: none;">
-		<img src="./front_end/website.svg" height="100" width="100"  style="padding-left: 60px;"/>
-		<center>
-                  <p class="common-body-text" style="text-align: center; font-weight: bold;">Want to learn more about me?</p>
-		</br>
-                <h2 class="common-UppercaseText">Visit my website.</h2>
-		</center>
-              </a>
+         <section class="globalFooterCards" style="position: relative">
+            <div style="opacity:0.1;">
+               <div id="stripes" style="background: blue;-webkit-transform: skewY(0deg);transform: skewY(0deg);"></div>
             </div>
-        </section>
+            <div class="container-xl">
+               <a class="globalFooterCard" href="https://github.com/paul-tqh-nguyen" style="text-decoration: none;">
+                  <img src="./front_end/github.svg" height="100" width="100"  style="padding-left: 60px;"/>
+                  <center>
+                     <p class="common-body-text" style="text-align: center; font-weight: bold;">Interested In My Work?</p>
+                     </br>
+                     <h2 class="common-UppercaseText">See my projects on GitHub.</h2>
+                  </center>
+               </a>
+               <a class="common-Link globalFooterCard card-connect" href="https://paul-tqh-nguyen.github.io/about/" style="text-decoration: none;">
+                  <img src="./front_end/website.svg" height="100" width="100"  style="padding-left: 60px;"/>
+                  <center>
+                     <p class="common-body-text" style="text-align: center; font-weight: bold;">Want to learn more about me?</p>
+                     </br>
+                     <h2 class="common-UppercaseText">Visit my website.</h2>
+                  </center>
+               </a>
+            </div>
+         </section>
       </footer>
    </body>
 </html>
