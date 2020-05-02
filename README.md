@@ -19,3 +19,7 @@ The tools utilized in our exploration include:
 - [bs4](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
 - [Pandas](https://pandas.pydata.org/)
 - Many more (see our [environment.yml](https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/environment.yml) if you're having trouble getting the functionality running or [contact me](https://paul-tqh-nguyen.github.io/about/)).
+
+If you're interested in more of my work, see my [website](https://paul-tqh-nguyen.github.io/about/).
+
+Thanks for visiting!
