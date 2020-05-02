@@ -891,6 +891,31 @@ money-fx <strong style="color: grey;">False</strong>
                This small but noticeable improvement might be worth investigating further in the future by appropriately accounting for outliers in the center point calculation using a <a href="https://en.wikipedia.org/wiki/Standard_deviation">standard deviation</a> threshold. Another option worth exploring would be to exclude <a href="https://en.wikipedia.org/wiki/False_positives_and_false_negatives">false positives and false negatives</a>.
             </p>
             <h3>Stopword Removal</h3>
+               <center id="preprocessing-interface-table">
+                  <table style="margin-left: 0">
+                     <tr>
+                       <td style="text-align: left">
+			 <pre>
+			   <code>
+arvin industries inc said l.k. evans <strong style="color: purple; font-size: 1.5em;">has been</strong> elected president, succeeding james baker <strong style="color: purple; font-size: 1.5em;">who</strong> remains chairman.
+			   </code>
+			 </pre>
+                       </td>
+                     </tr>
+                     <tr>
+                       <td style="text-align: center; font-size: 5vw; color: darkviolet; margin: 0; height: 5vw;  -ms-transform: translateY(-10%); transform: translateY(-10%);">&#8650;&#8650;</td>
+                     </tr>
+                     <tr>
+                       <td style="text-align: left">
+			 <pre>
+			   <code>
+arvin industries inc said l.k. evans elected president, succeeding james baker remains chairman.
+			   </code>
+			 </pre>
+                       </td>
+                     </tr>
+		  </table>
+	       </center>
             <p class="common-body-text">
                <a href="https://en.wikipedia.org/wiki/Stop_words">stopwords</a> were removed during data pre-processing. 
             </p>
@@ -904,6 +929,46 @@ money-fx <strong style="color: grey;">False</strong>
                I used <a href="https://www.nltk.org/">NLTK</a>'s English <a href="https://en.wikipedia.org/wiki/Stop_words">stopword</a> list for <a href="https://en.wikipedia.org/wiki/Stop_words">stopword</a> removal via <code>nltk.corpus.stopwords.words('english')</code>.
             </p>
             <h3>Contraction Expansion</h3>
+               <center id="contraction-table">
+                  <table style="margin-left: 0;">
+                     <tr>
+                       <td style="text-align: center"><pre><code>needn't</code></pre></td>
+		       <td style="text-align: center;font-size:5vw; color: darkviolet;">&#8649;</td>
+                       <td style="text-align: center"><pre><code>need not</code></pre></td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center"><pre><code>there'd</code></pre></td>
+		       <td style="text-align: center;font-size:5vw; color: darkviolet;">&#8649;</td>
+                       <td style="text-align: center"><pre><code>there had</code></pre></td>
+                     </tr>
+                     <tr>
+                       <td style="text-align: center"><pre><code>where's</code></pre></td>
+		       <td style="text-align: center;font-size:5vw; color: darkviolet;">&#8649;</td>
+                       <td style="text-align: center"><pre><code>where is</code></pre></td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center"><pre><code>mightn't</code></pre></td>
+		       <td style="text-align: center;font-size:5vw; color: darkviolet;">&#8649;</td>
+                       <td style="text-align: center"><pre><code>might not</code></pre></td>
+                     </tr>
+                     <tr>
+                       <td style="text-align: center"><pre><code>can't've</code></pre></td>
+		       <td style="text-align: center;font-size:5vw; color: darkviolet;">&#8649;</td>
+                       <td style="text-align: center"><pre><code>cannot have</code></pre></td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center"><pre><code>they're</code></pre></td>
+		       <td style="text-align: center;font-size:5vw; color: darkviolet;">&#8649;</td>
+                       <td style="text-align: center"><pre><code>they are</code></pre></td>
+                     </tr>
+                     <tr>
+                       <td style="text-align: center"><pre><code>haven't</code></pre></td>
+		       <td style="text-align: center;font-size:5vw; color: darkviolet;">&#8649;</td>
+                       <td style="text-align: center"><pre><code>have not</code></pre></td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center"><pre><code>they'd've</code></pre></td>
+		       <td style="text-align: center;font-size:5vw; color: darkviolet;">&#8649;</td>
+                       <td style="text-align: center"><pre><code>they would have</code></pre></td>
+                     </tr>
+		  </table>
+	       </center>
             <p class="common-body-text">
                <a href="https://en.wikipedia.org/wiki/Contraction_(grammar)">Contractions</a> were expanded during data pre-processing. It yielded no noticeable improvement for any of the models. 
             </p>
@@ -911,11 +976,36 @@ money-fx <strong style="color: grey;">False</strong>
                I manually implemented the contraction/shorthand expander. The list of contractions and shorthand can be found <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocess_data.py#L47">here</a>.
             </p>
             <h3>Number Tokenization</h3>
+               <center id="preprocessing-interface-table">
+                  <table style="margin-left: 0">
+                     <tr>
+                       <td style="text-align: left">
+			 <pre>
+			   <code>
+general motors corp said it produced <strong style="color: purple; font-size: 1.5em;">395,294</strong> cars in the u.s. in march, up from <strong style="color: purple; font-size: 1.5em;">366,671</strong> in march <strong style="color: purple; font-size: 1.5em;">1986</strong>.
+			   </code>
+			 </pre>
+                       </td>
+                     </tr>
+                     <tr>
+                       <td style="text-align: center; font-size: 5vw; color: darkviolet; margin: 0; height: 5vw;  -ms-transform: translateY(-10%); transform: translateY(-10%);">&#8650;&#8650;</td>
+                     </tr>
+                     <tr>
+                       <td style="text-align: left">
+			 <pre>
+			   <code>
+general motors corp said it produced <strong style="color: purple; font-size: 1.5em;">NUMBER</strong> cars in the u.s. in march, up from <strong style="color: purple; font-size: 1.5em;">NUMBER</strong> in march <strong style="color: purple; font-size: 1.5em;">NUMBER</strong> .
+			   </code>
+			 </pre>
+                       </td>
+                     </tr>
+		  </table>
+	       </center>
             <p class="common-body-text">
                Numbers, e.g. <code>"9"</code>, <code>"3/4"</code>, <code>"1.3"</code>, <code>"1,256,412"</code>, were replaced with a special <code>NUMBER</code> token. While this drastically decreased the <a href="https://en.wikipedia.org/wiki/Statistical_machine_translation#Out_of_vocabulary_(OOV)_words"><code>UNK</code></a> count in the data and the total number of <a href="https://en.wikipedia.org/wiki/Statistical_machine_translation#Out_of_vocabulary_(OOV)_words">unknown words</a> (which is expected), it yielded no noticeable improvement for any of the models. It did help reduce the noise when investigating the impact of <a href="https://en.wikipedia.org/wiki/Statistical_machine_translation#Out_of_vocabulary_(OOV)_words">unknown words</a>.
             </p>
             <h3>Lemmatization</h3>
-               <center id="desired-interface-table">
+               <center id="preprocessing-interface-table">
                   <table style="margin-left: 0">
                      <tr>
                        <td style="text-align: left">
@@ -927,7 +1017,7 @@ amoco corp said <strong style="color: purple; font-size: 1.5em;">raised</strong>
                        </td>
                      </tr>
                      <tr>
-                       <td style="text-align: center; font-size: 10vw; color: darkviolet; margin: 0; height: 5vw;  -ms-transform: translateY(-10%); transform: translateY(-10%);">&#8650;&#8650;</td>
+                       <td style="text-align: center; font-size: 5vw; color: darkviolet; margin: 0; height: 5vw;  -ms-transform: translateY(-10%); transform: translateY(-10%);">&#8650;&#8650;</td>
                      </tr>
                      <tr>
                        <td style="text-align: left">
