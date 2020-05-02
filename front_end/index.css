@@ -265,7 +265,7 @@ body {
 }
 
 #introduction {
-    background: linear-gradient(130deg, #a32c5c 5%, #781D7E 40%, purple 50%, #df00fe 95%);
+    background: linear-gradient(130deg, #a32c5c 0%, purple 40%, purple 60%, #a32c5c 100%);
     padding-bottom: 5vh;
     height: 100vh;
 }

@@ -96,7 +96,6 @@
                   Here's a brief look at some of the <code>.sgm</code> content:
                <pre>
 		<code>
-pnguyen@pnguyenmachine:/tmp/reuters_topic_labelling/data$ head -n 30 reut2-021.sgm
 &lt;!DOCTYPE lewis SYSTEM &quot;lewis.dtd&quot;&gt;
 &lt;REUTERS TOPICS=&quot;NO&quot; LEWISSPLIT=&quot;TEST&quot; CGISPLIT=&quot;TRAINING-SET&quot; OLDID=&quot;20436&quot; NEWID=&quot;21001&quot;&gt;
 &lt;DATE&gt;19-OCT-1987 15:37:46.03&lt;/DATE&gt;
@@ -127,7 +126,6 @@ f f BC-CITYFED-FINANCI   10-19 0013&lt;/UNKNOWN&gt;
 &lt;COMPANIES&gt;&lt;/COMPANIES&gt;
 &lt;UNKNOWN&gt; 
 &amp;#5;&amp;#5;&amp;#5;Y 
-pnguyen@pnguyenmachine:/tmp/reuters_topic_labelling/data$ 
 		</code>
 	      </pre>
                </p>
@@ -331,7 +329,7 @@ pnguyen@pnguyenmachine:/tmp/reuters_topic_labelling/data$
                   Note that some columns contain strings that denote via comma-separation multiple values. The data in these columns are <a href="https://en.wikipedia.org/wiki/Database_normalization">unnormalized</a>. The topics are stored in such a column. <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a> contains the <a href="https://en.wikipedia.org/wiki/Database_normalization">normalized</a> topic data.
                </p>
                <p class="common-body-text">
-                  Here's a sample of <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a> via <a href="https://pandas.pydata.org/">Pandas</a>:
+                  Here's a sample of <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a>:
                <div style="margin-left: 15vw; width: 70vw; overflow-x: scroll; border: 1px solid #999;">
                   <table class="pandas-dataframe">
                      <thead>
@@ -641,26 +639,26 @@ money-fx <strong style="color: grey;">False</strong>
                This is a <a href="https://en.wikipedia.org/wiki/Multi-label_classification">multi-label text classification</a> problem.
             </p>
             <p class="common-body-text">
-               Most articles in the dataset have only a few topics. If an article has a few topics, then there are few positive choices and many negative choices. Thus, there is a dataset imbalance. Because of this data imbalance, the <a href="https://en.wikipedia.org/wiki/F1_score">F1 metric</a> was chosen to evaluate the performance. 
+               Most articles in the dataset have only a few topics. If an article has a few topics, then there are few positive choices and many negative choices. Thus, there is a <a href="https://en.wikipedia.org/wiki/Oversampling_and_undersampling_in_data_analysis">dataset imbalance</a>. Because of this data imbalance, the <a href="https://en.wikipedia.org/wiki/F1_score">F1 metric</a> was chosen to evaluate the performance. 
             </p>
             <h3>Model Results</h3>
             <p class="common-body-text">
-               I implemented 3 neural net models, an RNN, a CNN, and a dense neural network. 
+               I implemented 3 neural net models, an <a href="https://en.wikipedia.org/wiki/Recursive_neural_network">RNN</a>, a <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network">CNN</a>, and a <a href="https://en.wikipedia.org/wiki/Multilayer_perceptron">dense neural network</a>. 
             </p>
             <p class="common-body-text">
-               I performed random search over the hyperparameter space to determine the best possible score for each model.
+               I performed <a href="https://en.wikipedia.org/wiki/Random_search">random search</a> over the <a href="https://en.wikipedia.org/wiki/Hyperparameter">hyperparameter space</a> to determine the best possible score for each model.
             </p>
             <p class="common-body-text">
-               I split dataset to allocate 50% of examples for training, 20% of examples for validation, and 30% of examples for testing.
+               I <a href="https://en.wikipedia.org/wiki/Training,_validation,_and_test_sets">split dataset</a> to allocate 50% of examples for training, 20% of examples for validation, and 30% of examples for testing.
             </p>
             <p class="common-body-text">
-               The CNN performed the best and got a test set F1 score of <code>0.7655879</code>.
+               The <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network">CNN</a> performed the best and got a test set F1 score of <code>0.7655879</code>.
             </p>
             <p class="common-body-text">
-               The dense neural network did not perform as well and got a test set F1 score of <code>0.6601627</code>.
+               The <a href="https://en.wikipedia.org/wiki/Multilayer_perceptron">dense neural network</a> did not perform as well and got a test set F1 score of <code>0.6601627</code>.
             </p>
             <p class="common-body-text">
-               The RNN performed very poorly a test set F1 score of <code>0.1065762</code>.
+               The <a href="https://en.wikipedia.org/wiki/Recursive_neural_network">RNN</a> performed very poorly a test set F1 score of <code>0.1065762</code>.
             </p>
             <h3>Neural Network Architectures</h3>
             <p class="common-body-text">
@@ -685,30 +683,30 @@ money-fx <strong style="color: grey;">False</strong>
             </ul>
             </p>
             <p class="common-body-text">
-               Below is a description of the CNN's architecture:
+               Below is a description of the <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network">CNN</a>'s architecture:
             <ol>
-               <li>The first layer was an embedding layer.</li>
-               <li>The second layer was a set of several parallel convolutional layers that the sequence of beddings were passed through.</li>
-               <li>The third layer was a pooling layer (the choice of max or average pooling was a hyperparameter) that pooled the results of each convolutional layer.</li>
-               <li>The final layer was a fully connected layer that took the concatenation of all the pooling results.</li>
+               <li>The first layer was an <a href="https://en.wikipedia.org/wiki/Word_embedding">embedding layer</a>.</li>
+               <li>The second layer was a set of several parallel <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network#Convolutional">convolutional layers</a> that the sequence of embeddings were passed through.</li>
+               <li>The third layer was a <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network#Pooling">pooling layer</a> (the choice of max or average pooling was a hyperparameter) that pooled the results of each <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network#Convolutional">convolutional layer</a>.</li>
+               <li>The final layer was a <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network#Fully_connected">fully connected layer</a> that took the concatenation of all the pooling results.</li>
             </ol>
             </p>
             <p class="common-body-text">
-               Below is a description of the RNN's architecture:
+               Below is a description of the <a href="https://en.wikipedia.org/wiki/Recursive_neural_network">RNN</a>'s architecture:
             <ol>
-               <li>The first layer was an embedding layer.</li>
-               <li>The second layer was a bi-directional LSTM encoding layer.</li>
+               <li>The first layer was an <a href="https://en.wikipedia.org/wiki/Word_embedding">embedding layer</a>.</li>
+               <li>The second layer was a bi-directional <a href="https://en.wikipedia.org/wiki/Long_short-term_memory">LSTM</a> encoding layer.</li>
                <li>The third layer was an attention layer using <a href="https://arxiv.org/abs/1703.03130">Zhouhan Lin's attention mechanism</a>.</li>
-               <li>The final layer was a fully connected layer.</li>
+               <li>The final layer was a <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network#Fully_connected">fully connected layer</a>.</li>
             </ol>
             </p>
             <p class="common-body-text">
-               Below is a description of the dense neural network's architecture:
+               Below is a description of the <a href="https://en.wikipedia.org/wiki/Multilayer_perceptron">dense neural network</a>'s architecture:
             <ol>
                <li>Prior to going through any layers, the input sequence was truncated or padded to a max sequence length (a hyperparameter).</li>
-               <li>The first layer was an embedding layer.</li>
-               <li>The intermediate layers were all fully connected layers (the size of each layer and number of layers were hyperparameters).</li>
-               <li>The final layer was a fully connected layer.</li>
+               <li>The first layer was an <a href="https://en.wikipedia.org/wiki/Word_embedding">embedding layer</a>.</li>
+               <li>The intermediate layers were all <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network#Fully_connected">fully connected layers</a> (the size of each layer and number of layers were hyperparameters).</li>
+               <li>The final layer was a <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network#Fully_connected">fully connected layer</a>.</li>
             </ol>
             </p>
             <p class="common-body-text">
@@ -783,36 +781,36 @@ money-fx <strong style="color: grey;">False</strong>
             </p>
             <h3>Data Imbalance</h3>
             <p class="common-body-text">
-               With binary classification problems, data imbalance can be solved easily through oversampling or undersampling as there are only two categories to balance. Sample until the two categories are the same size. For single-label multi-class classification, a similar method can be used. 
+               With <a href="https://en.wikipedia.org/wiki/Binary_classification">binary classification</a> problems, data imbalance can be solved easily through <a href="https://en.wikipedia.org/wiki/Oversampling_and_undersampling_in_data_analysis">oversampling or undersampling</a> as there are only two categories to balance. Sample until the two categories are the same size. For single-label <a href="https://en.wikipedia.org/wiki/Multiclass_classification">multi-class classification</a>, a similar method can be used. 
             </p>
             <p class="common-body-text">
-               With multi-label classification, the problem of determining which oversampling or undersampling is not clear. 
+               With <a href="https://en.wikipedia.org/wiki/Multi-label_classification">multi-label classification</a>, the problem of determining which oversampling or undersampling is not clear. 
             </p>
             <p class="common-body-text">
-               My understanding is that there are two classes of methods for handling data imbalance, generating samples over a discrete space and generating samples over a continuous space. 
+               Methods for handling data imbalance can be thought of as being in two general classes, generating samples over a <a href="https://en.wikipedia.org/wiki/Discrete_space">discrete space</a> and generating samples over a <a href="https://en.wikipedia.org/wiki/Continuous_function">continuous space</a>. 
             </p>
             <p class="common-body-text">
                Example methods of generating samples over a discrete space might include:
             <ul>
-               <li>Random oversampling/undersampling of existing data</li>
-               <li>Generating data-augmented samples</li>
+               <li><a href="https://en.wikipedia.org/wiki/Oversampling_and_undersampling_in_data_analysis">Random oversampling/undersampling of existing data</a></li>
+               <li><a href="https://en.wikipedia.org/wiki/Convolutional_neural_network#Artificial_data">Generating data-augmented samples</a></li>
             </ul>
             </p>
             <p class="common-body-text">
                Example methods of generating samples over a continuous space might include:
             <ul>
-               <li>SMOTE</li>
-               <li>ADASYN</li>
+               <li><a href="https://arxiv.org/pdf/1106.1813.pdf">SMOTE</a></li>
+               <li><a href="https://sci2s.ugr.es/keel/pdf/algorithm/congreso/2008-He-ieee.pdf">ADASYN</a></li>
             </ul>
             </p>
             <p class="common-body-text">
-               For NLP, it seems that generating samples over a continuous space isn’t always applicable, and it is not obvious from the current literature that this would be effective in the NLP. One possible method of doing this might be using SMOTE (or some similar method) to generate synthetic sequences of word embeddings. Since it wasn't clear that this was a promising path, I did not prioritize exploring this option. Results from this investigation will come in the future.
+               For <a href="https://en.wikipedia.org/wiki/Natural_language_processing">natural language processing</a>, it seems that generating samples over a continuous space isn’t always applicable, and it is not obvious from the current literature that this would be effective. One possible method of doing this might be using <a href="https://arxiv.org/pdf/1106.1813.pdf">SMOTE</a> (or some similar method) to generate synthetic sequences of <a href="https://en.wikipedia.org/wiki/Word_embedding">word embeddings</a>. Since it wasn't clear that this was a promising path, I did not prioritize exploring this option. Results from this investigation will come in the future.
             </p>
             <p class="common-body-text">
                For generating samples over a discrete space, data-augmentation is a known method that works (e.g. <a href="https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge/discussion/52557">Kaggle competitors have augmented their data by translating to a different language and back to the original language</a>; text data has also been augmented via synonym replacement). Data augmentation creates a richer input dataset, but the labels may still be unbalanced, especially for a multi-label dataset.
             </p>
             <p class="common-body-text">
-               As far as I could tell, selecting which samples to oversample or undersample and by how much is not clear since some samples might decrease imbalance by incrementing one underrepresented label’s count but increase imbalance by incrementing an overrepresented label’s count.
+               As far as I could tell, selecting which samples to <a href="https://en.wikipedia.org/wiki/Oversampling_and_undersampling_in_data_analysis">oversample or undersample</a> and by how much is not clear since some samples might decrease imbalance by incrementing one underrepresented label’s count but increase imbalance by incrementing an overrepresented label’s count.
             </p>
             <p class="common-body-text">
                I'll below present my (possibly novel?) method of solving this problem.
@@ -833,17 +831,17 @@ money-fx <strong style="color: grey;">False</strong>
                Other differentiable objective functions can be chosen (some good ideas can be found in <a href="https://en.wikipedia.org/wiki/Exact_test">here</a>, <a href="https://en.wikipedia.org/wiki/Statistical_significance">here</a>, and <a href="https://en.wikipedia.org/wiki/Goodness_of_fit">here</a>). Exploring these options would be interesting future work. 
             </p>
             <p class="common-body-text">
-               Though this was an interesting and fun idea to explore, oversampling the dataset using this method by varying amounts up to 3x the size of the original dataset while minimizing the label distributions difference from a uniform distribution achieved no noticeable improvement. 
+               Though this was an interesting and fun idea to explore, oversampling the dataset using this method by varying amounts up to 3x the size of the original dataset while minimizing the label distributions difference from a <a href="https://en.wikipedia.org/wiki/Uniform_distribution_(continuous)">uniform distribution</a> achieved no noticeable improvement. 
             </p>
             <p class="common-body-text">
-               I believe that this method might be useful for cases where data imbalance causes problems, but it might not be useful for this given dataset due to the small size where the data imbalance is not the dominating issue.
+               I believe that this method might be useful for cases where <a href="https://en.wikipedia.org/wiki/Oversampling_and_undersampling_in_data_analysis">data imbalance</a> causes problems, but it might not be useful for this given dataset due to the small size where the <a href="https://en.wikipedia.org/wiki/Oversampling_and_undersampling_in_data_analysis">data imbalance</a> is not the dominating issue.
             </p>
             <h3>Data Augmentation</h3>
             <p class="common-body-text">
                I attempted to use <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network#Artificial_data">data augmentation</a> to enhance performance. 
             </p>
             <p class="common-body-text">
-               The data was augmented by randomly replacing words with the <code>UNK</code> token.
+               The data was augmented by randomly replacing words with the <a href="https://en.wikipedia.org/wiki/Statistical_machine_translation#Out_of_vocabulary_(OOV)_words"><code>UNK</code></a> token.
             </p>
             <p class="common-body-text">
                This was tried with several probabilities (up to 70%).
@@ -852,7 +850,7 @@ money-fx <strong style="color: grey;">False</strong>
                I saw no noticeable improvement in F1 score across all of the models. 
             </p>
             <p class="common-body-text">
-               The most salient change observed was that the convergence of the CNN and dense neural network slowed by about 2-3 epochs, but they both eventually converged to approximately what they normally would without the data augmentation. 
+               The most salient change observed was that the <a href="https://en.wikipedia.org/wiki/Stochastic_gradient_descent#Iterative_method">convergence</a> of the <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network">CNN</a> and <a href="https://en.wikipedia.org/wiki/Multilayer_perceptron">dense neural network</a> slowed by about 2-3 epochs, but they both eventually converged to approximately what they normally would without the <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network#Artificial_data">data augmentation</a>. 
             </p>
             <p class="common-body-text">
                For future work, another possible method worth exploring would be replacing words with synonyms (possibly restricting the synonym choices to only those present in the training set rather than all possible synonyms in the English language). 
@@ -901,7 +899,7 @@ money-fx <strong style="color: grey;">False</strong>
             </p>
             <h3>Number Tokenization</h3>
             <p class="common-body-text">
-               Numbers, e.g. <code>"9"</code>, <code>"3/4"</code>, <code>"1.3"</code>, <code>"1,256,412"</code>, were replaced with a special <code>NUMBER</code> token. While this drastically decreased the <code>UNK</code> count in the data and the total number of unknown words (which is expected), it yielded no noticeable improvement for any of the models. It did help reduce the noise when investigating the impact of unknown words.
+               Numbers, e.g. <code>"9"</code>, <code>"3/4"</code>, <code>"1.3"</code>, <code>"1,256,412"</code>, were replaced with a special <code>NUMBER</code> token. While this drastically decreased the <a href="https://en.wikipedia.org/wiki/Statistical_machine_translation#Out_of_vocabulary_(OOV)_words"><code>UNK</code></a> count in the data and the total number of <a href="https://en.wikipedia.org/wiki/Statistical_machine_translation#Out_of_vocabulary_(OOV)_words">unknown words</a> (which is expected), it yielded no noticeable improvement for any of the models. It did help reduce the noise when investigating the impact of <a href="https://en.wikipedia.org/wiki/Statistical_machine_translation#Out_of_vocabulary_(OOV)_words">unknown words</a>.
             </p>
             <h3>Lemmatization</h3>
             <p class="common-body-text">
@@ -941,7 +939,7 @@ money-fx <strong style="color: grey;">False</strong>
             </p>
             <h3>Command-Line Interface</h3>
             <p class="common-body-text">
-               Much of the functionality discussed in this document can be utilized via the CLI.
+               Much of the functionality discussed in this document can be utilized via the <a href="https://en.wikipedia.org/wiki/Command-line_interface">CLI</a>.
             <pre>
 		<code>
 pnguyen@pnguyenmachine:/tmp/reuters_topic_labelling$ ./main.py
@@ -1005,7 +1003,7 @@ pnguyen@pnguyenmachine:/tmp/reuters_topic_labelling$
                I used <a href="https://pytorch.org/">PyTorch</a> and <a href="https://pytorch.org/text/">TorchText</a> to implement the models.
             </p>
             <p class="common-body-text">
-               I'll show how to use the CNN for now. Use of the other models will be analogous.
+               I'll show how to use the <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network">CNN</a> for now. Use of the other models will be analogous.
             </p>
             <p class="common-body-text">
             <pre>
@@ -1171,7 +1169,7 @@ but not extend the exemption to all farmers, Lyng's aide said.
                <div id="stripes" style="background: darkviolet;"></div>
             </div>
             <p class="common-body-text">
-               The biggest lesson is that it is much more practical to use a Jupyter Notebook to write up notes and findings than it is to write an HTML page. 
+               The biggest lesson is that it is much more practical to use a <a href="https://jupyter.org/">Jupyter Notebook</a> to write up notes and findings than it is to write an HTML page. 
             </p>
             <p class="common-body-text">
                As far as the other lessons go, they fall into two <i>overlapping</i> categories, deep-learning engineering practices/theory and software engineering practices. 
@@ -1224,18 +1222,18 @@ but not extend the exemption to all farmers, Lyng's aide said.
                This may be a simple repeat of the above lessons, but it might be worth phrasing in a different context. Simply learning deep-learning but not “classical” machine learning is insufficient. 
             </p>
             <p class="common-body-text">
-               When I read the advice to <i>“<a href="https://www.reddit.com/r/MachineLearning/comments/5z8110/d_a_super_harsh_guide_to_machine_learning/">Now forget all of that [machine learning] and read the deep learning book.</a>”</i>, I thought it would be foolish to learn all these older machine learning methods if I’m not going to use them or if they’re not nearly as performant as the latest neural network models. 
+               When I read the advice to <i>“<a href="https://www.reddit.com/r/MachineLearning/comments/5z8110/d_a_super_harsh_guide_to_machine_learning/">Now forget all of that [machine learning] and read the deep learning book.</a>”</i>, I naively believed it would be foolish to learn all these older machine learning methods if I’m not going to use them or if they’re not nearly as performant as the latest neural network models. 
             </p>
             <p class="common-body-text">
                This was foolish for a few reasons that many have already shared elsewhere online. 
             </p>
             <p class="common-body-text">
-               “Classical” machine learning methods tend to be more interpretable (and therefore easier to debug and learn from, which is especially important for someone new to the field who is learning).
+               “Classical” machine learning methods tend to be more interpretable (and easier to debug and to analyze).
             </p>
             <p class="common-body-text">
                Many techniques taught in earlier machine learning courses tend to apply to deep-learning as well. They aren’t mentioned often in deep learning tutorials since they’re often assumed to be known. Some examples include random oversampling and evaluation metrics. In this regard, I initially fell into the trap of thinking that my 99.999% accuracy score I initially got with my LSTM+Attention was due to the fact that my model was so great. It was because my model was great at being an uninformative classifier. If I had taken the time to learn all of these “classical” machine learning concepts, I’d’ve known what an uninformative classifier was and how that might be a problem. 
             </p>
-            <h4>Listen to your Kahunas.</h4>
+            <h4>Listen to your <a href="https://en.wikipedia.org/wiki/Kahuna">Kahunas</a>.</h4>
             <p class="common-body-text">
                This is similar to the previous lessons in that there are many places to learn useful things. One is from “classical” machine learning methods or other foundations. Another is from people who’ve been working the field for a long time or are influential in the field. 
             </p>
@@ -1272,23 +1270,23 @@ but not extend the exemption to all farmers, Lyng's aide said.
             <p class="common-body-text">
                Principled software development and abstraction (in particular, the use of abstract classes) saved me tons of time when trying different models. Once I had written my training loop, data loader, check pointing functionality, etc., I never had to deal with it again. I could simply write a new nn.Module and have a new text classifier. If I had written the training loop like all the notebooks that I see on Kaggle, I’d have to have changed things all over the place in different places along the giant script. With my abstract class definition, I only had to implement one or two methods for each model I wanted to use. 
             </p>
-            <h4>Effective Time Management</h4>
+            <h4>Effective Experiment Scheduling</h4>
             <p class="common-body-text">
-               Most people never learn how to effectively complete side-projects. The largest contributing factors are insufficient effort and insufficient time availability. The time availability problem is made worse for deep-learning and machine learning projects by the fact that training and hyperparameter tuning take a long time. This can cause a huge problem for many people given the way that many people work on their side projects (in contiguous blocks allocated on weekends). Deep-learning side-project productivity can be increased by intelligently scheduling the hyperparameter tuning and training. Schedule those to happen overnight and (not or) while at work. This will allow us to get results more frequently and more often. It additionally helps to put some minor amounts of effort in the morning before work to review the overnight results. This allows the testing if new ideas throughout the day while we’re busy at work. This will also increase the frequency that we work on our side project, which is beneficial because it increases the total time we look at our problem with fresh eyes. 
+               Most people never learn how to effectively complete side-projects. The largest contributing factors are insufficient effort and insufficient time availability. The time availability problem is made worse for deep-learning and machine learning projects by the fact that training and hyperparameter tuning take a long time. This can cause a huge problem for many people given the way that many people work on their side projects (in contiguous blocks allocated on weekends). Deep-learning side-project productivity can be increased by intelligently scheduling the hyperparameter tuning and training. Schedule those to happen overnight <i>and</i> while at work. This will allow us to get results more frequently and more often. It additionally helps to put some minor amounts of effort in the morning before work to review the overnight results. This allows the testing if new ideas throughout the day while we’re busy at work. This will also increase the frequency that we work on our side project, which is beneficial because it increases the total time we look at our problem with fresh eyes. 
             </p>
             <h4>Learn Python Libraries</h4>
             <p class="common-body-text">
-               It’s extremely hard to know what someone means when they say that they’re a Python developer since someone can start writing and developing Python projects after at most an hour of tutorials. A strong Python developer can be noted by how well the developer can use Python’s most useful feature, the excessive number of both native and community-driven libraries. There are many useful utilities that can be found in Python’s native libraries that made writing a lot of code easier and faster since they let me write my code in a very concise way without having to write several of my own utilities. The libraries that proved extremely useful in this project (and that I believe everyone who boasts the title “Python developer” should know before making such claims) are gc, inspect, traceback,  contextlib, functools, itertools, multiprocessing, collections and pdb. The multiprocessing library was extremely useful for getting quick and easy speed ups in the data pre-processing pipeline to increase productivity. Other useful but non-vital libraries that were useful were tqdm, bs4, and colorama.
+               It’s extremely hard to know what someone means when they say that they’re a Python developer since someone can start writing and developing Python projects after at most an hour of tutorials. A strong Python developer can be noted by how well the developer can use Python’s most useful feature, which is the excessive number of both native and community-driven libraries. There are many useful utilities that can be found in Python’s native libraries that made writing a lot of code easier and faster since they let me write my code in a very concise way without having to write several of my own utilities. The libraries that proved extremely useful in this project (and that I believe everyone who boasts the title “Python developer” should know before making such claims) are <a href="https://docs.python.org/3/library/gc.html">gc</a>, <a href="https://docs.python.org/3/library/inspect.html">inspect</a>, <a href="https://docs.python.org/3/library/traceback.html">traceback</a>,  <a href="https://docs.python.org/3/library/contextlib.html">contextlib</a>, <a href="https://docs.python.org/3/library/functools.html">functools</a>, <a href="https://docs.python.org/3/library/itertools.html">itertools</a>, <a href="https://docs.python.org/3/library/multiprocessing.html">multiprocessing</a>, <a href="https://docs.python.org/3/library/collections.html">collections</a>. and <a href="https://docs.python.org/3/library/pdb.html">pdb</a>. The multiprocessing library was extremely useful for getting quick and easy speed ups in the data pre-processing pipeline to increase productivity. Other useful but non-vital libraries that were useful were <a href="https://github.com/tqdm/tqdm">tqdm</a>, <a href="https://www.crummy.com/software/BeautifulSoup/bs4/doc/">bs4</a>, and <a href="https://pypi.org/project/colorama/">colorama</a>.
             </p>
             <h3>Last Words</h3>
             <p class="common-body-text">
-               There’s a lot of wisdom to be gained by heeding the advice of others. Andrej Karpathy and Joel Spolsky are two particularly wise wisemen. 
+               There’s a lot of wisdom to be gained by heeding the advice of others. <a href="https://cs.stanford.edu/people/karpathy/">Andrej Karpathy</a> and <a href="https://www.joelonsoftware.com/">Joel Spolsky</a> are two particularly wise wisemen. 
             </p>
             <p class="common-body-text">
                There are also many lessons that I should’ve learned from them that I won’t’ve known I should’ve learned until I do things the hard way and go down the path of suffering. 
             </p>
             <p class="common-body-text">
-               Luckily for my learning, there are many options that I didn’t explore here and much more work to be done. It’s not clear how to determine the effectiveness of these options without simply trying them. A meta-lesson learned would be that it would be nice to learn how to estimate how promising certain routes are. This comes with practice and more projects. Look forward to more projects to come.
+               Luckily for my learning, there are many options that I didn’t explore here and much more work to be done. It’s not clear how to determine the effectiveness of these options without simply trying them. A meta-lesson learned is that it would be nice to learn how to estimate how promising certain routes are. This comes with practice and more projects. Look forward to more projects to come.
             </p>
 	    </br>
 	    </br>
@@ -1301,7 +1299,7 @@ but not extend the exemption to all farmers, Lyng's aide said.
                <div id="stripes" style="background: blue;-webkit-transform: skewY(0deg);transform: skewY(0deg);"></div>
             </div>
             <div class="container-xl">
-               <a class="globalFooterCard" href="https://github.com/paul-tqh-nguyen" style="text-decoration: none;">
+               <a target="_blank" class="globalFooterCard" href="https://github.com/paul-tqh-nguyen" style="text-decoration: none;">
                   <img src="./front_end/github.svg" height="100" width="100"  style="padding-left: 60px;"/>
                   <center>
                      <p class="common-body-text" style="text-align: center; font-weight: bold;">Interested In My Work?</p>
@@ -1309,7 +1307,7 @@ but not extend the exemption to all farmers, Lyng's aide said.
                      <h2 class="common-UppercaseText">See my projects on GitHub.</h2>
                   </center>
                </a>
-               <a class="common-Link globalFooterCard card-connect" href="https://paul-tqh-nguyen.github.io/about/" style="text-decoration: none;">
+               <a target="_blank" class="common-Link globalFooterCard card-connect" href="https://paul-tqh-nguyen.github.io/about/" style="text-decoration: none;">
                   <img src="./front_end/website.svg" height="100" width="100"  style="padding-left: 60px;"/>
                   <center>
                      <p class="common-body-text" style="text-align: center; font-weight: bold;">Want to learn more about me?</p>
