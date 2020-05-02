@@ -9,10 +9,10 @@ main a {
 
 .pandas-dataframe {
     background-color: #eee;
-    white-space: nowrap;
-    scroll-direction: horizontal;
     font-family: Courier, Monaco, monospace;
     font-size: 1.5em;
+    white-space: nowrap;
+    scroll-direction: horizontal;
     overflow: scroll;
     padding: 15px 15px 15px 15px;
 }
@@ -32,7 +32,8 @@ pre code {
     display: block;
     padding-top: 20px;
     padding-bottom: 20px;
-    padding-left: 7vw;
+    padding-left: 7%;
+    overflow: scroll;
 }
 
 .common-body-text, #introduction li {
@@ -81,6 +82,7 @@ body {
 }
 
 #hyperparameter-stats table, #hyperparameter-stats th, #hyperparameter-stats td {
+    table-layout: fixed;
     padding: 5px 100px 5px 5px;
     text-align: left;
     font-size: 1.8em;
@@ -141,18 +143,15 @@ body {
 
 #desired-interface-table {
     padding: 5px 5px 5px 5px;
-    margin-left: 15vw;
     text-align: left;
-    width: 45vw;
-    width: 05vw;
     font-size: 0.5em;
-    border-radius: 100px;
-    box-shadow: 0px 0px 0px 0px rgba(0,0,0,0.0);
 }
 
-#desired-interface-table code {
-  padding-left: 2vw;
-  padding-right: 2vw;
+#desired-interface-table table {
+    padding-left: 15%;
+    table-layout: fixed;
+    width: 90%;
+    text-align: left;
 }
 
 #stripes,
@@ -267,7 +266,7 @@ body {
 #introduction {
     background: linear-gradient(130deg, #a32c5c 0%, purple 40%, purple 60%, #a32c5c 100%);
     padding-bottom: 5vh;
-    height: 100vh;
+    height: 100%;
 }
 
 #introduction ul {
@@ -298,9 +297,12 @@ body {
     color: yellow;
 }
 
-#introduction table, #introduction th, #introduction td {
-    margin-left: 15vw;
-    width: 40%;
+#top-page-splitting-table td {
+      width: 50%;
+}
+
+#top-level-stats table, #top-level-stats th, #top-level-stats td {
+    width: 70%;
     text-align: left;
     font-size: 1.4em;
     color: #f9e6ff;
@@ -311,8 +313,8 @@ h1 {
     text-align: center;
     color: #f9e6ff;
     font-size: 40px;
-    padding-top: 4vh;
-    padding-bottom: 4vh;
+    padding-top: 3vh;
+    padding-bottom: 3vh;
 }
 
 .section-icon {

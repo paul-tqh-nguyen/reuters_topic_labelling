@@ -10,45 +10,93 @@
             <h1>Multi-Label Topic Classification on Reuters Newswire Articles</h1>
          </center>
          <p class="common-body-text">
-            This document covers methods I investigated to perform multi-label text classification on the <a href="http://kdd.ics.uci.edu/databases/reuters21578/reuters21578.html">Reuters-21578 Text Categorization Collection</a>.
+            This document covers deep-learning methods investigated to perform multi-label text classification on the <a href="http://kdd.ics.uci.edu/databases/reuters21578/reuters21578.html">Reuters-21578 Text Categorization Collection</a>.
          </p>
-         <p class="common-body-text">
-            Three neural network models were developed. 
-         </p>
-         <p class="common-body-text">Their architectures and performances are shown below:
-         <table>
-            <tr>
-               <th>Architecture</th>
-               <th>F1 Score</th>
+         <table id="top-page-splitting-table">
+           <tr>
+             <td>
+	       <p class="common-body-text">Their architectures and performances are shown below:
+		 <center id="top-level-stats">
+		   <table>
+		     <tr>
+		       <th>Architecture</th>
+		       <th>F1 Score</th>
+		     </tr>
+		     <tr>
+		       <td>CNN</td>
+		       <td>0.7655879</td>
+		     </tr>
+		     <tr>
+		       <td>Dense Neural Network</td>
+		       <td>0.6601627</td>
+		     </tr>
+		     <tr>
+		       <td>RNN (LSTM+Attention)</td>
+		       <td>0.1065762</td>
+		     </tr>
+		   </table>
+	       </p>
+	       <p class="common-body-text">
+		 The code used in this document can be found <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling">here</a>.
+	       </p>
+	       <p class="common-body-text">
+		 Table of Contents:
+		 <ul>
+		   <li><a href="#problem-description">Data Description & Problem Overview</a></li>
+		   <li><a href="#methods-employed">Methods Employed & Performance Evaluation</a></li>
+		   <li><a href="#implementation-details">Implementation Details & Code Demonstration</a></li>
+		   <li><a href="#conclusion">Conclusion & Lessons Learned</a></li>
+		 </ul>
+	       </p>
+	     </td>
+	     <td>
+                  <table>
+                     <tr>
+                       <td style="text-align: left">
+			 <center>
+                          <pre style="scroll-direction: horizontal;">
+			    <code style ="width: 30vw; overflow: scroll; color: #eee; background-color: rgb(48, 10, 36, 1.0); text-align: left; padding-left: 5%; padding-right: 5%; padding-top: 0%; padding-bottom: 0%;">
+The Panamanian bulk carrier Juvena is
+still aground outside Tartous, Syria, despite discharging 6,400
+tons of its 39,000-ton cargo of wheat, and water has entered
+the engine-room due to a crack in the vessel bottom, Lloyds
+Shipping Intelligence Service said.
+    The Juvena, 53,351 tonnes dw, ran aground outside Tartous
+port basin breakwater on February 25 in heavy weather and rough
+seas.
+ Reuter
+			    </code>
+			  </pre>
+			  </center>
+                        </td>
+                     </tr>
+                     <tr style="position: relative;">
+                        <td style="text-align: center; font-size: 10vw; color: #eee; margin: 0; height: 5vw;  -ms-transform: translateY(-10%); transform: translateY(-10%);">&#8650;&#8650;</td>
+                     </tr>
+                     <tr>
+                       <td style="text-align: left">
+			 <center>
+                           <pre>
+			     <code style ="color: #eee; background-color: rgb(48, 10, 36, 1.0); width: 50%; padding-left: 5%; padding-right: 5%; padding-top: 0%; padding-bottom: 0%;">
+     acq <strong style="color: grey;">False</strong>
+    corn <strong style="color: grey;">False</strong>
+   crude <strong style="color: grey;">False</strong>
+    earn <strong style="color: grey;">False</strong>
+   grain <strong style="color: #df00fe;">True</strong>
+interest <strong style="color: grey;">False</strong>
+money-fx <strong style="color: grey;">False</strong>
+    ship <strong style="color: #df00fe;">True</strong>
+   trade <strong style="color: grey;">False</strong>
+   wheat <strong style="color: #df00fe;">True</strong>
+			     </code>
+			   </pre>
+			 </center>
+                       </td>
+                     </tr>
+		  </table>
+	      </td>
             </tr>
-            <tr>
-               <td>CNN</td>
-               <td>0.7655879</td>
-            </tr>
-            <tr>
-               <td>Dense Neural Network</td>
-               <td>0.6601627</td>
-            </tr>
-            <tr>
-               <td>RNN (LSTM+Attention)</td>
-               <td>0.1065762</td>
-            </tr>
-         </table>
-         </p>
-         <p class="common-body-text">
-         </p>
-         <p class="common-body-text">
-            The code used in this document can be found <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling">here</a>.
-         </p>
-         <p class="common-body-text">
-            Table of Contents:
-         <ul>
-            <li><a href="#problem-description">Data Description & Problem Overview</a></li>
-            <li><a href="#methods-employed">Methods Employed & Performance Evaluation</a></li>
-            <li><a href="#implementation-details">Implementation Details & Code Demonstration</a></li>
-            <li><a href="#conclusion">Conclusion & Lessons Learned</a></li>
-         </ul>
-         </p>
+	 </table>
       </div>
       <main>
          <div>
@@ -475,44 +523,10 @@ f f BC-CITYFED-FINANCI   10-19 0013&lt;/UNKNOWN&gt;
                <p class="common-body-text">
                   Here's an example of the desired product:
                </p>
-               <div id="desired-interface-table">
+               <center id="desired-interface-table">
                   <table>
                      <tr>
-                        <td style="text-align: left">
-                           <pre>
-			 <code>
-The Panamanian bulk carrier Juvena is
-still aground outside Tartous, Syria, despite discharging 6,400
-tons of its 39,000-ton cargo of wheat, and water has entered
-the engine-room due to a crack in the vessel bottom, Lloyds
-Shipping Intelligence Service said.
-    The Juvena, 53,351 tonnes dw, ran aground outside Tartous
-port basin breakwater on February 25 in heavy weather and rough
-seas.
- Reuter
-			</code>
-		      </pre>
-                        </td>
-                        <td style="text-align: div;font-size:10vw; color: darkviolet;">&#8649;</td>
-                        <td style="text-align: left">
-                           <pre>
-			<code>
-     acq <strong style="color: grey;">False</strong>
-    corn <strong style="color: grey;">False</strong>
-   crude <strong style="color: grey;">False</strong>
-    earn <strong style="color: grey;">False</strong>
-   grain <strong style="color: purple;">True</strong>
-interest <strong style="color: grey;">False</strong>
-money-fx <strong style="color: grey;">False</strong>
-    ship <strong style="color: purple;">True</strong>
-   trade <strong style="color: grey;">False</strong>
-   wheat <strong style="color: purple;">True</strong>
-			</code>
-		      </pre>
-                        </td>
-                     </tr>
-                     <tr>
-                        <td style="text-align: left">
+                        <td style="width: 60%">
                            <pre>
 			<code>
 Farmers enrolled over 6.5 mln acres
@@ -545,8 +559,8 @@ for publication later this week, they said.
 			</code>
 		      </pre>
                         </td>
-                        <td style="text-align: div;font-size:10vw; color: darkviolet;">&#8649;</td>
-                        <td style="text-align: left">
+			<td style="text-align: center;font-size:10vw; color: darkviolet;">&#8649;</td>
+                        <td>
                            <pre>
 			<code>
      acq <strong style="color: grey;">False</strong>
@@ -564,10 +578,9 @@ money-fx <strong style="color: grey;">False</strong>
                         </td>
                      </tr>
                      <tr>
-                        <td style="text-align: left">
+                        <td>
                            <pre>
 			<code>
-
 Sen. David Pryor, D-Ark., said
 he was considering amending the Senate Finance Committee's
 trade bill with a provision to require a marketing loan for
@@ -586,8 +599,8 @@ Committees.
 			</code>
 		      </pre>
                         </td>
-                        <td style="text-align: div;font-size:10vw; color: darkviolet;">&#8649;</td>
-                        <td style="text-align: left">
+                        <td style="text-align: center;font-size:10vw; color: darkviolet;">&#8649;</td>
+                        <td>
                            <pre>
 			<code>
      acq <strong style="color: grey;">False</strong>
@@ -605,7 +618,7 @@ money-fx <strong style="color: grey;">False</strong>
                         </td>
                      </tr>
                   </table>
-               </div>
+               </center>
                <p class="common-body-text">
                   More details about the methods used to solve this problem come in the <a href="#methods-employed">next section</a>.
                </p>
