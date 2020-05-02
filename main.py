@@ -1,5 +1,4 @@
-#!/usr/bin/python3
-'#!/usr/bin/python3 -OO' # @todo make this the default
+#!/usr/bin/python3 -OO
 
 '''
 This file contains the functionality for the main interface to several NLP processes on documents that appeared on Reuters newswire in 1987.
@@ -20,7 +19,7 @@ import argparse
 import random
 import os
 import itertools
-from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_message, safe_cuda_memory
+from misc_utilites import tqdm_with_message, safe_cuda_memory
 
 #################
 # Functionality #
@@ -213,7 +212,6 @@ def hyperparameter_search_rnn() -> None:
 # Driver #
 ##########
 
-@debug_on_error
 def main() -> None:
     parser = argparse.ArgumentParser(formatter_class = lambda prog: argparse.HelpFormatter(prog, max_help_position = 30))
     parser.add_argument('-preprocess-data', action='store_true', help='Preprocess the raw SGML files into a CSV.')

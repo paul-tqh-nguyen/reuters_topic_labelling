@@ -948,6 +948,15 @@ money-fx <strong style="color: grey;">False</strong>
                If you have <a href="https://docs.conda.io/en/latest/">conda</a> installed, simply running <code>conda env create ; conda activate reuters</code> from the checkout directory will handle all dependency issues.
             </p>
             <p class="common-body-text">
+	      You may have to download the <a href="https://www.nltk.org/">NLTK</a> <a href="https://en.wikipedia.org/wiki/Stop_words">stopword</a> set via <code>python3 -c "import nltk; nltk.download('stopwords')"</code>.
+            </p>
+            <p class="common-body-text">
+	      You also may have to download the <a href="https://www.nltk.org/">NLTK</a> <a href="https://wordnet.princeton.edu/">WordNet</a> set via <code>python3 -c "import nltk; nltk.download('wordnet')"</code>.
+            </p>
+            <p class="common-body-text">
+	      There may also be some <a href="https://spacy.io/"><code>spacy</code></a> utilities that need to be downloaded via <code>python3 -m spacy download en</code>.
+            </p>
+            <p class="common-body-text">
                If you're having trouble, <a href="mailto:paul.tqh.nguyen@gmail.com">please let me know</a>. 
             </p>
             <h3>Command-Line Interface</h3>

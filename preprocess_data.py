@@ -8,11 +8,11 @@ The data can be found at http://kdd.ics.uci.edu/databases/reuters21578/reuters21
 Sections:
 * Imports
 * Globals
-* Preprocessing Utilities
+* Shorthand with Special Characters & Contraction Expansion
+* General String Preprocessing Utilities
+* File Preprocessing Utilities
 * Driver
 """
-
-# @todo update the sections outline
 
 ###########
 # Imports #
@@ -26,7 +26,7 @@ import nltk
 import pandas as pd
 from typing import Iterable, Tuple
 from nltk.corpus.reader.wordnet import ADJ, ADJ_SAT, ADV, NOUN, VERB
-from misc_utilites import debug_on_error, eager_map, at_most_one, tqdm_with_message, parallel_map, timer
+from misc_utilites import eager_map, at_most_one, parallel_map, timer
 
 ###########
 # Globals #
@@ -376,7 +376,6 @@ def parse_sgm_files() -> Tuple[pd.DataFrame, pd.DataFrame]:
     topics_df = delete_topics_with_insufficient_data(topics_df)
     return all_df, topics_df
 
-@debug_on_error
 def preprocess_data() -> None:
     if not os.path.isdir(PREPROCESSED_DATA_DIR):
         os.makedirs(PREPROCESSED_DATA_DIR)

@@ -1,8 +1,12 @@
 #!/usr/bin/python3 -OO
 
 """
+This file contains miscellaneous utilities (mostly for debugging).
+
+Sections:
+* Imports
+* Misc. Utilities
 """
-# @todo figure out this doc string
 
 ###########
 # Imports #
@@ -19,7 +23,7 @@ from tqdm import tqdm
 from contextlib import contextmanager
 from typing import Iterable, List, Callable
 
-###################
+################### 
 # Misc. Utilities #
 ###################
 
@@ -117,38 +121,6 @@ def debug_on_error(func: Callable) -> Callable:
             traceback.print_exc()
             pdb.post_mortem(tb)
     return decorating_function
-
-
-BOGUS_TOKEN = lambda x:x
-
-def dpn(expression_string: str, given_frame=None):
-    """dpn == debug print name"""
-    try:
-        frame = inspect.currentframe() if given_frame is None else given_frame
-        prev_frame = frame.f_back
-        macro_caller_locals = prev_frame.f_locals
-        macro_caller_globals = prev_frame.f_globals
-        new_var_name = f'paul_dpf_hack_{id(expression_string)}'
-        new_globals = dict(macro_caller_globals)
-        new_globals.update({new_var_name: BOGUS_TOKEN})
-        exec(f'{new_var_name} = {expression_string}', macro_caller_locals, new_globals)
-        var_value = new_globals[new_var_name]
-        if id(var_value) == id(BOGUS_TOKEN):
-            raise NameError(f"Cannot determine value of {expression_string}")
-        print(f'{expression_string}: {repr(var_value)}')
-    finally:
-        del frame
-    return var_value
-
-class __dpf_hack_by_paul__():
-    def __init__(self):
-        pass
-    
-    def __getattr__(self, var_name):
-        frame = inspect.currentframe()
-        return dpn(var_name, frame)
-
-dpf = __dpf_hack_by_paul__()
 
 if __name__ == '__main__':
     print("This file contains miscellaneous utilities.")
