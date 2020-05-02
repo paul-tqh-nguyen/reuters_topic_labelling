@@ -308,7 +308,7 @@ f f BC-CITYFED-FINANCI   10-19 0013&lt;/UNKNOWN&gt;
                            <td>U.S. HOME SALES ROSE 7.6 PCT IN APRIL</td>
                            <td>WASHINGTON, June 2 -</td>
                            <td>Sales of new, single-family homes rose\n7.6 pc...</td>
-                           <td>sale new, single-family home rise &lt;NUMBER&gt; . &lt;...</td>
+                           <td>sale new, single-family home rise NUMBER . NUM...</td>
                            <td>./data/reut2-018.sgm</td>
                            <td>2</td>
                         </tr>
@@ -465,7 +465,7 @@ f f BC-CITYFED-FINANCI   10-19 0013&lt;/UNKNOWN&gt;
                         </tr>
                         <tr>
                            <th>3</th>
-                           <td>may two net shr &lt;NUMBER&gt; cts vs eight cts net ...</td>
+                           <td>may two net shr NUMBER cts vs eight cts net NU...</td>
                            <td>27</td>
                            <td>May Two net\n    Shr 11 cts vs eight cts\n    ...</td>
                            <td>PEP BOYS - MANNY, MOE AND JACK INC &lt;PBY&gt; 1ST QTR</td>
@@ -915,6 +915,31 @@ money-fx <strong style="color: grey;">False</strong>
                Numbers, e.g. <code>"9"</code>, <code>"3/4"</code>, <code>"1.3"</code>, <code>"1,256,412"</code>, were replaced with a special <code>NUMBER</code> token. While this drastically decreased the <a href="https://en.wikipedia.org/wiki/Statistical_machine_translation#Out_of_vocabulary_(OOV)_words"><code>UNK</code></a> count in the data and the total number of <a href="https://en.wikipedia.org/wiki/Statistical_machine_translation#Out_of_vocabulary_(OOV)_words">unknown words</a> (which is expected), it yielded no noticeable improvement for any of the models. It did help reduce the noise when investigating the impact of <a href="https://en.wikipedia.org/wiki/Statistical_machine_translation#Out_of_vocabulary_(OOV)_words">unknown words</a>.
             </p>
             <h3>Lemmatization</h3>
+               <center id="desired-interface-table">
+                  <table style="margin-left: 0">
+                     <tr>
+                       <td style="text-align: left">
+			 <pre>
+			   <code>
+amoco corp said <strong style="color: purple; font-size: 1.5em;">raised</strong> contract price pay <strong style="color: purple; font-size: 1.5em;">grades</strong> crude oil NUMBER cts barrel, effective today.
+			   </code>
+			 </pre>
+                       </td>
+                     </tr>
+                     <tr>
+                       <td style="text-align: center; font-size: 10vw; color: darkviolet; margin: 0; height: 5vw;  -ms-transform: translateY(-10%); transform: translateY(-10%);">&#8650;&#8650;</td>
+                     </tr>
+                     <tr>
+                       <td style="text-align: left">
+			 <pre>
+			   <code>
+amoco corp say <strong style="color: purple; font-size: 1.5em;">raise</strong> contract price pay <strong style="color: purple; font-size: 1.5em;">grade</strong> crude oil NUMBER cts barrel, effective today.
+			   </code>
+			 </pre>
+                       </td>
+                     </tr>
+		  </table>
+	       </center>
             <p class="common-body-text">
                I employed <a href="https://en.wikipedia.org/wiki/Lemmatisation">lemmatization</a> during the data pre-processing. It yielded no noticeable improvement for any of the models. 
             </p>

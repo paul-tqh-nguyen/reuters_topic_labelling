@@ -198,7 +198,7 @@ def pervasively_replace(input_string: str, old: str, new: str) -> str:
 
 def replace_digits_with_special_token(input_string: str) -> str:
     output_string = input_string
-    output_string = re.sub(r'[0-9]+', ' <NUMBER> ', output_string)
+    output_string = re.sub(r'[0-9]+', f' {NUMBER_TOKEN} ', output_string)
     assert 10 == sum(map(int, (digit not in output_string for digit in '1234567890')))
     return output_string
 
