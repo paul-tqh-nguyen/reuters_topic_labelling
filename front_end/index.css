@@ -158,10 +158,10 @@ body {
     padding: 5px 5px 5px 5px;
     text-align: left;
     font-size: 0.5em;
+    margin-left: 10%;
 }
 
 #preprocessing-interface-table table {
-    padding-left: 10%;
     table-layout: fixed;
     width: 90%;
     text-align: left;

@@ -202,6 +202,34 @@ f f BC-CITYFED-FINANCI   10-19 0013&lt;/UNKNOWN&gt;
                   Not all of the <code>&lt;REUTERS&gt;</code> elements contained elements for each of the tags described above. There was sometimes not present data (e.g. some articles didn't mention any significant individual people, so there was nothing listed in the <code>&lt;PEOPLE&gt;</code> tag or the <code>&lt;PEOPLE&gt;</code> was entirely not present) and missing data (very often noted by the <code>"Blah blah blah."</code> string).
                </p>
                <h3>Dataset Pre-Processing Broad Overview</h3>
+               <center id="preprocessing-interface-table">
+                  <table style="margin-left: 0">
+                     <tr>
+                       <td style="text-align: left">
+			 <pre>
+			   <code>
+West German wholesale turnover
+provisionally totalled about 58 billion marks in February, a
+rise of a real one pct compared with the same month last year,
+the Federal Statistics Office said.
+			   </code>
+			 </pre>
+                       </td>
+                     </tr>
+                     <tr>
+                       <td style="text-align: center; font-size: 5vw; color: darkviolet; margin: 0; height: 5vw;  -ms-transform: translateY(-10%); transform: translateY(-10%);">&#8650;&#8650;</td>
+                     </tr>
+                     <tr>
+                       <td style="text-align: left">
+			 <pre>
+			   <code>
+west german wholesale turnover provisionally total NUMBER billion mark february, rise real one pct compare month last year, federal statistic office said. 
+			   </code>
+			 </pre>
+                       </td>
+                     </tr>
+		  </table>
+	       </center>
                <p class="common-body-text">
                   This section will broadly go over the pre-processing pipeline.
                </p>
@@ -850,6 +878,31 @@ money-fx <strong style="color: grey;">False</strong>
                I believe that this method might be useful for cases where <a href="https://en.wikipedia.org/wiki/Oversampling_and_undersampling_in_data_analysis">data imbalance</a> causes problems, but it might not be useful for this given dataset due to the small size where the <a href="https://en.wikipedia.org/wiki/Oversampling_and_undersampling_in_data_analysis">data imbalance</a> is not the dominating issue.
             </p>
             <h3>Data Augmentation</h3>
+               <center id="preprocessing-interface-table">
+                  <table style="margin-left: 0">
+                     <tr>
+                       <td style="text-align: left">
+			 <pre>
+			   <code>
+japanese crusher buy NUMBER <strong style="color: purple; font-size: 1.5em;">NUMBER</strong> tonne canadian <strong style="color: purple; font-size: 1.5em;">rapeseed</strong> export business overnight may shipment, <strong style="color: purple; font-size: 1.5em;">trade</strong> source said.
+			   </code>
+			 </pre>
+                       </td>
+                     </tr>
+                     <tr>
+                       <td style="text-align: center; font-size: 5vw; color: darkviolet; margin: 0; height: 5vw;  -ms-transform: translateY(-10%); transform: translateY(-10%);">&#8650;&#8650;</td>
+                     </tr>
+                     <tr>
+                       <td style="text-align: left">
+			 <pre>
+			   <code>
+japanese crusher buy NUMBER <strong style="color: purple; font-size: 1.5em;">UNK</strong> tonne canadian <strong style="color: purple; font-size: 1.5em;">UNK</strong> export business overnight may shipment, <strong style="color: purple; font-size: 1.5em;">UNK</strong> source said.
+			   </code>
+			 </pre>
+                       </td>
+                     </tr>
+		  </table>
+	       </center>
             <p class="common-body-text">
                I attempted to use <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network#Artificial_data">data augmentation</a> to enhance performance. 
             </p>
@@ -869,6 +922,90 @@ money-fx <strong style="color: grey;">False</strong>
                For future work, another possible method worth exploring would be replacing words with synonyms (possibly restricting the synonym choices to only those present in the training set rather than all possible synonyms in the English language). 
             </p>
             <h3>F1 Threshold Optimization</h3>
+               <center id="preprocessing-interface-table" style="padding-top: 30px; padding-bottom: 30px;">
+                  <table style="margin-left: 0; ">
+                     <tr>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center"><code style="font-size: 15px">Rounding</br>Threshold</code></td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                     </tr>
+		  </table>
+                  <table style="margin-left: 0; background-color: #eee; border: 1px solid #999; ">
+                    <tr>
+                       <td style="text-align: left"><code style="font-size: 20px">0.0</code></td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center"><code style="font-size: 20px">N</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center"><code style="font-size: 20px; color: #eee">_____</code><code style="font-size: 20px; color: darkviolet">|</code><code style="font-size: 20px; color: #eee">_____</code></td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center"><code style="font-size: 20px">0.5</code></td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center"><code style="font-size: 20px">P</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: right"><code style="font-size: 20px">1.0</code></td>
+                     </tr>
+		  </table>
+                  <table style="margin-left: 0; ">
+                     <tr>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center"><code style="font-size: 15px">Negative Prediction Mean</code></td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center"><code style="font-size: 20px; color: darkviolet">Optimized Threshold</code></td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center"><code style="font-size: 15px">Positive Prediction Mean</code></td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                     </tr>
+		  </table>
+	       </center>
             <p class="common-body-text">
                When deep neural networks are used in practice to classify samples, the continuous output of the network is discretized frequently using a <a href="https://en.wikipedia.org/wiki/Rounding">round function</a>. This simply sets the threshold at <code>0.5</code>.
             </p>
