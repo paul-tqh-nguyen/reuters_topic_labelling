@@ -18,7 +18,7 @@ from functools import reduce
 from typing import List, Callable, Iterable
 from collections import OrderedDict
 
-from abstract_classifier import Classifier, DEVICE
+from abstract_classifier import Classifier, DEVICE, soft_f1_loss
 
 import torch
 import torch.nn as nn
@@ -192,10 +192,10 @@ class DenseNetwork(nn.Module):
         super().__init__()
         self.pad_idx = pad_idx
         self.max_sequence_length = dense_hidden_sizes[0]
+        self.final_hidden_size = dense_hidden_sizes[-1]
         if __debug__:
             self.embedding_size = embedding_size
             self.dense_hidden_sizes = dense_hidden_sizes
-            self.final_hidden_size = dense_hidden_sizes[-1]
             self.output_size = output_size
         self.embedding_layers = nn.Sequential(OrderedDict([
             ("embedding_layer", nn.Embedding(vocab_size, embedding_size, padding_idx=pad_idx, max_norm=1.0)),

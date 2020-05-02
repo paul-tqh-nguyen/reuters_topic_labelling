@@ -1,4 +1,5 @@
-#!/usr/bin/python3 -OO
+#!/usr/bin/python3 -O
+'#!/usr/bin/python3 -OO' # @ todo this causes errors when it should not; reported via https://github.com/pytorch/text/issues/752 ; update this when bug is fixed
 
 '''
 This file contains the functionality for the main interface to several NLP processes on documents that appeared on Reuters newswire in 1987.
