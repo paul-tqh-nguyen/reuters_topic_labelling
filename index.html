@@ -10,30 +10,30 @@
             <h1>Multi-Label Topic Classification on Reuters Newswire Articles</h1>
          </center>
          <p class="common-body-text">
-            This document covers how well 3 different neural network architectures perform multi-label text classification on <a href="http://kdd.ics.uci.edu/databases/reuters21578/reuters21578.html">Reuters-21578 Text Categorization Collection</a>.
+            This document covers methods I investigated to perform multi-label text classification on the <a href="http://kdd.ics.uci.edu/databases/reuters21578/reuters21578.html">Reuters-21578 Text Categorization Collection</a>.
          </p>
          <p class="common-body-text">
-	   Three neural network models were developed. 
+            Three neural network models were developed. 
          </p>
          <p class="common-body-text">Their architectures and performances are shown below:
-	   <table>
-	     <tr>
-	       <th>Architecture</th>
-	       <th>F1 Score</th>
-	     </tr>
-	     <tr>
+         <table>
+            <tr>
+               <th>Architecture</th>
+               <th>F1 Score</th>
+            </tr>
+            <tr>
                <td>CNN</td>
                <td>0.7655879</td>
-	     </tr>
-             <tr>
+            </tr>
+            <tr>
                <td>Dense Neural Network</td>
                <td>0.6601627</td>
-             </tr>
-             <tr>
+            </tr>
+            <tr>
                <td>RNN (LSTM+Attention)</td>
                <td>0.1065762</td>
-             </tr>
-	   </table>
+            </tr>
+         </table>
          </p>
          <p class="common-body-text">
          </p>
@@ -41,59 +41,60 @@
             The code used in this document can be found <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling">here</a>.
          </p>
          <p class="common-body-text">
-           Table of Contents:
-           <ul>
-             <li><a href="#problem-description">Data Description & Problem Overview</a></li>
-             <li><a href="#methods-employed">Methods Employed & Performance Evaluation</a></li>
-             <li><a href="#implementation-details">Implementation Details & Code Demonstration</a></li>
-             <li><a href="#conclusion">Conclusion & Lessons Learned</a></li>
-           </ul>
+            Table of Contents:
+         <ul>
+            <li><a href="#problem-description">Data Description & Problem Overview</a></li>
+            <li><a href="#methods-employed">Methods Employed & Performance Evaluation</a></li>
+            <li><a href="#implementation-details">Implementation Details & Code Demonstration</a></li>
+            <li><a href="#conclusion">Conclusion & Lessons Learned</a></li>
+         </ul>
          </p>
       </div>
       <main>
-	<div>
-	  <div id="top-spacer"></div>
-	  <script>if (["#problem-description","#methods-employed","#implementation-details","#conclusion"].includes(window.location.hash)) {document.getElementById("top-spacer").style.height = "20vh";}</script>
-          <div class="topic-section">
-            <center id="problem-description">
-              <h2 class="common-UppercaseTitle">
-                <svg class="section-icon">
-                  <circle fill="#eeb5f7" cx="33" cy="33" r="33">
-                     </circle>
-                     <path d="M15.7 45.3c-.7-2-.7-3.3-.7-8v-8.7c0-4.6 0-6 .7-8 .8-2.2 2.7-4 5-5 2-.6 3.3-.6 8-.6h8.7c4.6 0 6 0 8 .7 2.2.8 4 2.7 5 5 .6 2 .6 3.3.6 8v8.7c0 4.6 0 6-.7 8-.8 2.2-2.7 4-5 5-2 .6-3.3.6-8 .6h-8.7c-4.6 0-6 0-8-.7-2.2-.8-4-2.7-5-5z" fill="#beb5eb"></path>
-                     <g>
-                        <rect fill="#8e80ff" x="23" y="27" width="20" height="2" rx="1"></rect>
-                        <circle fill="#8e80ff" cx="27.000185427800893" cy="28" r="4"></circle>
-                     </g>
-                     <g>
-                        <rect fill="#8e80ff" x="23" y="37" width="20" height="2" rx="1"></rect>
-                        <circle fill="#8e80ff" cx="27.0000000285928" cy="38" r="4"></circle>
-                     </g>
-                  </svg>
-                  <span>
-                  Data Description & Problem Overview
-                  </span>
-               </h2>
-            </center>
-            <h3>Original Dataset Overview</h3>
-            <p class="common-body-text">
-               We are looking at the <a href="http://kdd.ics.uci.edu/databases/reuters21578/reuters21578.html">Reuters-21578 Text Categorization Collection</a>.
-            </p>
-            <p class="common-body-text">
-               A copy of the data that can be found in our <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/tree/master/data">repository</a>.
-            </p>
-            <p class="common-body-text">
-               The dataset's provided <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/data/README.txt">README</a> gives a good summary of what is provided. We'll provide a brief recap of the most pertinent content here:
-            <ul>
-               <li>The data is provided in <a href="https://en.wikipedia.org/wiki/Standard_Generalized_Markup_Language">SGML format</a>.</li>
-               <li>The data contains 21,578 Reuters Newswire articles from 1987.</li>
-               <li>There are 21 <code>.sgm</code> files with 1000 elements each. The 22nd and last <code>.sgm</code> file contains 578 elements. We'll examine those elements later in this section.</li>
-               <li>They also provide a list of exchanges, orgs, people, places, and topics. All of this can be extracted directly form the <code>.sgm</code> files.</li>
-            </ul>
-            </p>
-            <p class="common-body-text">
-               Here's a brief look at some of the <code>.sgm</code> content:
-            <pre>
+         <div>
+            <div id="top-spacer"></div>
+            </br>
+            <script>if (["#problem-description","#methods-employed","#implementation-details","#conclusion"].includes(window.location.hash)) {document.getElementById("top-spacer").style.height = "20vh";}</script>
+            <div class="topic-section">
+               <center id="problem-description">
+                  <h2 class="common-UppercaseTitle">
+                     <svg class="section-icon">
+                        <circle fill="#eeb5f7" cx="33" cy="33" r="33">
+                        </circle>
+                        <path d="M15.7 45.3c-.7-2-.7-3.3-.7-8v-8.7c0-4.6 0-6 .7-8 .8-2.2 2.7-4 5-5 2-.6 3.3-.6 8-.6h8.7c4.6 0 6 0 8 .7 2.2.8 4 2.7 5 5 .6 2 .6 3.3.6 8v8.7c0 4.6 0 6-.7 8-.8 2.2-2.7 4-5 5-2 .6-3.3.6-8 .6h-8.7c-4.6 0-6 0-8-.7-2.2-.8-4-2.7-5-5z" fill="#beb5eb"></path>
+                        <g>
+                           <rect fill="#8e80ff" x="23" y="27" width="20" height="2" rx="1"></rect>
+                           <circle fill="#8e80ff" cx="27.000185427800893" cy="28" r="4"></circle>
+                        </g>
+                        <g>
+                           <rect fill="#8e80ff" x="23" y="37" width="20" height="2" rx="1"></rect>
+                           <circle fill="#8e80ff" cx="27.0000000285928" cy="38" r="4"></circle>
+                        </g>
+                     </svg>
+                     <span>
+                     Data Description & Problem Overview
+                     </span>
+                  </h2>
+               </center>
+               <h3>Original Dataset Overview</h3>
+               <p class="common-body-text">
+                  The dataset being explored is <a href="http://kdd.ics.uci.edu/databases/reuters21578/reuters21578.html">Reuters-21578 Text Categorization Collection</a>.
+               </p>
+               <p class="common-body-text">
+                  A copy of the data that can be found in the <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/tree/master/data">repository</a>.
+               </p>
+               <p class="common-body-text">
+                  The dataset's provided <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/data/README.txt">README</a> gives a good summary of what is provided. I'll provide a brief recap of the most pertinent content here:
+               <ul>
+                  <li>The data is provided in <a href="https://en.wikipedia.org/wiki/Standard_Generalized_Markup_Language">SGML format</a>.</li>
+                  <li>The data contains 21,578 Reuters Newswire articles from 1987.</li>
+                  <li>There are 21 <code>.sgm</code> files with 1000 elements each. The 22nd and last <code>.sgm</code> file contains 578 elements. I'll examine those elements later in this section.</li>
+                  <li>They also provide a list of exchanges, orgs, people, places, and topics. All of this can be extracted directly form the <code>.sgm</code> files.</li>
+               </ul>
+               </p>
+               <p class="common-body-text">
+                  Here's a brief look at some of the <code>.sgm</code> content:
+               <pre>
 		<code>
 pnguyen@pnguyenmachine:/tmp/reuters_topic_labelling/data$ head -n 30 reut2-021.sgm
 &lt;!DOCTYPE lewis SYSTEM &quot;lewis.dtd&quot;&gt;
@@ -129,180 +130,358 @@ f f BC-CITYFED-FINANCI   10-19 0013&lt;/UNKNOWN&gt;
 pnguyen@pnguyenmachine:/tmp/reuters_topic_labelling/data$ 
 		</code>
 	      </pre>
-            </p>
-            <p class="common-body-text">
-               Note the presence of <code>"Blah blah blah."</code> in the <code>.sgm</code> file. This is discussed in the <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/data/README.txt">README</a>. These strings are placed where there was missing content. This type of content among others are handled during our data pre-processing.
-            </p>
-            <p class="common-body-text">
-               Each of the articles contained in this dataset were encapsulated in the <code>.sgm</code> files as a <code>&lt;REUTERS&gt;</code> element.
-            </p>
-            <p class="common-body-text">
-               Each <code>&lt;REUTERS&gt;</code> element could contain the following:
-            </p>
-            <p class="common-body-text">
-               Not all of the <code>&lt;REUTERS&gt;</code> elements contained elements for each of the tags described above. There was sometimes not present data (e.g. some articles didn't mention any significant individual people, so there was nothing listed in the <code>&lt;PEOPLE&gt;</code> tag or the <code>&lt;PEOPLE&gt;</code> was entirely not present) and missing data (very often noted by the <code>"Blah blah blah."</code> string).
-            </p>
-            <h3>Dataset Pre-Processing Broad Overview</h3>
-            <p class="common-body-text">
-               This section will broadly go over our pre-processing pipeline.
-            </p>
-            <p class="common-body-text">
-	      We used <a href="https://www.crummy.com/software/BeautifulSoup/bs4/doc/">Beautiful Soup</a> to parse the <code>.sgm</code> files.
-            </p>
-            <p class="common-body-text">
-               Our pre-processing pipeline generates two files, <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/all_extracted_data.csv"><code>all_extracted_data.csv</code></a> and <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a>.
-            </p>
-            <p class="common-body-text">
-               <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/all_extracted_data.csv"><code>all_extracted_data.csv</code></a> contains all the data present in the <code>.sgm</code> files in a <code>.csv</code> format. A row is generated for each article, i.e. <code>&lt;REUTERS&gt;</code> element, that has sufficient data (some <code>&lt;REUTERS&gt;</code> elements are corrupt or empty). 
-            </p>
-            <p class="common-body-text">
-               <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a> contains the <a href="https://en.wikipedia.org/wiki/Database_normalization">normalized</a> <code>&lt;TOPICS&gt;</code> data along with the corresponding article. 
-            </p>
-            <p class="common-body-text">
-               Our dataset pre-processing pipeline is:
-            <ol>
-               <li>We extract all of the <code>&lt;REUTERS&gt;</code> elements from the 22 <code>.sgm</code> files.</li>
-               <li>
-                  From each <code>&lt;REUTERS&gt;</code> article, we extract:
-                  <ul style="padding-top: 20px">
-                     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the article date via <code>&lt;DATE&gt;</code>.</li>
-                     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of a topics (a string with comma separated values, e.g. <code>"crude, ship, oil"</code>) via <code>&lt;TOPICS&gt;</code>.</li>
-                     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of places mentioned in the article via <code>&lt;PLACES&gt;</code>.</li>
-                     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of people mentioned in the article via <code>&lt;PEOPLE&gt;</code>.</li>
-                     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of organizations mentioned in the article via <code>&lt;ORGS&gt;</code>.</li>
-                     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of companies mentioned in the article via <code>&lt;COMPANIES&gt;</code>.</li>
-                     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the article title via <code>&lt;TITLE&gt;</code>.</li>
-                     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the article <a href="https://en.wikipedia.org/wiki/Dateline">dateline</a> via <code>&lt;DATELINE&gt;</code>.</li>
-                     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the raw original article text via <code>&lt;TEXT&gt;</code>.</li>
-                     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the preprocessed article text (we'll cover this in detail momentarily).</li>
-                     <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">whatever arbitrary content is in the <code>&lt;UNKNOWN&gt;</code> element.</li>
-                  </ul>
-               </li>
-               <li>The above data (along with the ordinal position of the <code>&lt;REUTERS&gt;</code> element within the <code>.sgm</code> file and the name of the relevant <code>.sgm</code> file) is stored in <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/all_extracted_data.csv"><code>all_extracted_data.csv</code></a>. <code>&lt;REUTERS&gt;</code> elements with an empty or corrupt <code>&lt;TEXT&gt;</code> sub-element are not included.</li>
-               <li>The topics data is then <a href="https://en.wikipedia.org/wiki/Database_normalization">normalized</a> to create <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a>. We removed topics that didn't have a sufficient number of associated articles. We require each topic to have at least 200 articles. Most models are incapable of learning to associate topics given an insufficient number of samples.</li>
-            </ol>
-            </p>
-            <p class="common-body-text">
-               Our article text pre-processining pipeline is (in order):
-            <ol>
-               <li>Lower case the string.</li>
-               <li>Fix common typos, e.g. "<code>"s</code>" was often used in place of "<code>'s</code>" in the raw text.</li>
-               <li><a href="https://en.wikipedia.org/wiki/Ellipsis">Ellipsis</a> collapsing (i.e. replacing all text matching the reguular expression <code>"\.\.\.\.+"</code> with the string <code>"..."</code>).</li>
-               <li>Replacing numbers with a special <code>NUMBER</code> token (in order to decrease the unknown token count).</li>
-               <li><a href="https://en.wikipedia.org/wiki/Contraction_(grammar)">Contraction</a> expansion.</li>
-               <li>White space stripping.</li>
-               <li><a href="https://en.wikipedia.org/wiki/Stop_words">Stopword</a> removal.</li>
-               <li><a href="https://en.wikipedia.org/wiki/Lemmatisation">Lemmatization</a>.</li>
-            </ol>
-            </p>
-            <p class="common-body-text">
-              Here's a sample of <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/all_extracted_data.csv"><code>all_extracted_data.csv</code></a> via <a href="https://pandas.pydata.org/">Pandas</a>:
-            <pre>
-		<code>
-&gt;&gt;&gt; df = pd.read_csv('all_extracted_data.csv')
-&gt;&gt;&gt; df.head
-&lt;bound method NDFrame.head of                           date  topics_raw_string                        places  ...                                               text                  file reuter_element_position
-0       2-JUN-1987 10:04:07.81            ['cpi']                    ['brazil']  ...  president jose sarney today declare &quot;a war wit...  ./data/reut2-018.sgm                       0
-1       2-JUN-1987 10:05:19.67                 []                       ['usa']  ...  sale new, single-family home rose NUMBER . &lt;...  ./data/reut2-018.sgm                       2
-2       2-JUN-1987 10:06:06.42                 []                        ['uk']  ...  brixton estate plc establish sterling commerci...  ./data/reut2-018.sgm                       3
-3       2-JUN-1987 10:06:53.99                 []                       ['usa']  ...  president reagan say paul volcker decline serv...  ./data/reut2-018.sgm                       4
-4       2-JUN-1987 10:11:04.12                 []                   ['belgium']  ...  belgium's public expenditure deficit fell shar...  ./data/reut2-018.sgm                       5
-...                        ...                ...                           ...  ...                                                ...                   ...                     ...
-19037  19-OCT-1987 21:22:52.77       ['money-fx']              ['japan', 'usa']  ...  japan's finance minister kiichi miyazawa say r...  ./data/reut2-019.sgm                     992
-19038  19-OCT-1987 21:58:03.49                 []               ['philippines']  ...  explosive device blow philippine congress buil...  ./data/reut2-019.sgm                     994
-19039  19-OCT-1987 22:08:52.87  ['crude', 'ship']      ['japan', 'usa', 'iran']  ...  japan say understood u.s. attack iranian oil p...  ./data/reut2-019.sgm                     995
-19040  19-OCT-1987 23:05:03.63          ['crude']  ['venezuela', 'usa', 'iran']  ...  world oil price would remain stable despite u....  ./data/reut2-019.sgm                     997
-19041  19-OCT-1987 23:30:37.76                 []                     ['japan']  ...  canon inc &lt;cann.t&gt; say stop make japanese lang...  ./data/reut2-019.sgm                     998
-
-[19042 rows x 14 columns]&gt;
-&gt;&gt;&gt; df.columns
-Index(['date', 'topics_raw_string', 'places', 'people', 'orgs', 'exchanges',
-       'companies', 'unknown', 'text_title', 'text_dateline', 'raw_text',
-       'text', 'file', 'reuter_element_position'],
-      dtype='object')
-&gt;&gt;&gt; {print(e) for e in {column:df[column][0] for column in df.columns}.items()}
-('date', '2-JUN-1987 10:04:07.81')
-('topics_raw_string', &quot;['cpi']&quot;)
-('places', &quot;['brazil']&quot;)
-('people', &quot;['sarney']&quot;)
-('orgs', '[]')
-('exchanges', '[]')
-('companies', '[]')
-('unknown', '[&quot; \\n\\x05\\x05\\x05C\\n\\x16\\x16\\x01f1027\\x1freute\\nu f BC-BRAZIL\'S-SARNEY-DECLA   06-02 0092&quot;]')
-('text_title', &quot;BRAZIL'S SARNEY RENEWS CALL FOR WAR ON INFLATION&quot;)
-('text_dateline', '    BRASILIA, June 2 - ')
-('raw_text', 'President Jose Sarney today declared &quot;a\nwar without quarter&quot; on inflation and said the government would\nwatch every cent of public expenditure.\n    Sarney, addressing his cabinet live on television, also\nreiterated that he intended to remain in power for five years,\nuntil 1990. There has been a long-running political debate\nabout how long his mandate should be.\n    Brazil is currently suffering from the worst inflation of\nits history. In April monthly inflation reached 21 pct.\n Reuter\n\x03')
-('text', 'president jose sarney today declare &quot;a war without quarter&quot; inflation say government would watch every cent public expenditure. sarney, address cabinet live television, also reiterate intend remain power five years, &lt;NUMBER&gt; . long-running political debate long mandate be. brazil currently suffer bad inflation history. april monthly inflation reach &lt;NUMBER&gt; pct. reuter')
-('file', './data/reut2-018.sgm')
-('reuter_element_position', 0)
-{None}
-&gt;&gt;&gt; 
-		</code>
-	      </pre>
-            </p>
-            <p class="common-body-text">
-               We were able to extract 19,042 rows with sufficient and non-corrupt article text data. 
-            </p>
-            <p class="common-body-text">
-               There are 14 columns in <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/all_extracted_data.csv"><code>all_extracted_data.csv</code></a> that correspond to what was discussed in our dataset pre-processing pipeline overview above. 
-            </p>
-            <p class="common-body-text">
-               Note that some columns contain strings that denote via comma-separation multiple values. The data in these columns are <a href="https://en.wikipedia.org/wiki/Database_normalization">unnormalized</a>. The topics are stored in such a column. <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a> contains the <a href="https://en.wikipedia.org/wiki/Database_normalization">normalized</a> topic data.
-            </p>
-            <p class="common-body-text">
-               Here's a sample of <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a> via <a href="https://pandas.pydata.org/">Pandas</a>:
-            <pre>
-		<code>
-&gt;&gt;&gt; df = pd.read_csv('topics_data.csv')
-&gt;&gt;&gt; df.columns
-Index(['text_dateline', 'text_title', 'raw_text', 'text',
-       'reuter_element_position', 'date', 'file', 'money-fx', 'acq', 'grain',
-       'earn', 'corn', 'interest', 'trade', 'crude', 'ship', 'wheat'],
-      dtype='object')
-&gt;&gt;&gt; {print(e) for e in {column:df[column][0] for column in df.columns}.items()}
-('reuter_element_position', 11)
-('raw_text', 'Newly-nominated Federal Reserve Board\nchairman Alan Greenspan said there was evidence the dollar\nfinally had bottomed out.\n    In a White House briefing Greenspan was asked by reporters\nif he thought the dollar had bottomed out.\n    &quot;There certainly is evidence in that direction,&quot; he replied.\n Reuter\n\x03')
-('text', 'newly-nominated federal reserve board chairman alan greenspan say evidence dollar finally bottom out. white house brief greenspan ask reporter think dollar bottom out. &quot;there certainly evidence direction,&quot; replied. reuter')
-('date', '2-JUN-1987 10:21:40.24')
-('file', './data/reut2-018.sgm')
-('text_title', 'GREENSPAN SEES EVIDENCE DOLLAR FALL OVER')
-('text_dateline', '    WASHINGTON, June 2 - ')
-('money-fx', True)
-('acq', nan)
-('grain', nan)
-('earn', nan)
-('corn', nan)
-('interest', nan)
-('trade', nan)
-('crude', nan)
-('ship', nan)
-('wheat', nan)
-{None}
-&gt;&gt;&gt; 
-		</code>
-	      </pre>
-            </p>
-            <p class="common-body-text">
-               We were only able to extract 8,599 rows with sufficient data for <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a>. This is due to the fact that many of the articles had topics with an insufficient article count (we used a threshold of 200). An insufficient article count would make the development of a well-performing model challenging if not impossible. 
-            </p>
-            <p class="common-body-text">
-	      Most of the data in the original dataset was sparse w.r.t. topic content. There were 10 topics that had a sufficient number of articles.
-            </p>
-            <h3>Problem Selection</h3>
-            <p class="common-body-text">
-               There are many problems we could attempt to solve, e.g. predicting the article title given the article text, extracting the names of the mentioned people or organizations from the text, or generating the dateline given the article text. 
-            </p>
-            <p class="common-body-text">
-               The problem we chose for this dataset was multi-label topic classification. Our goal was to develop a model to predict the possibly many topics associated with each article. This is a <a href="https://en.wikipedia.org/wiki/Multi-label_classification">multi-label classification problem</a>. 
-            </p>
-            <p class="common-body-text">
-               Here's an example of our desired product:
-            </p>
-            <div id="desired-interface-table">
-               <table>
-                  <tr>
-                     <td style="text-align: left">
-                       <pre>
+               </p>
+               <p class="common-body-text">
+                  Note the presence of <code>"Blah blah blah."</code> in the <code>.sgm</code> file. This is discussed in the <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/data/README.txt">README</a>. These strings are placed where there was missing content. This type of content among others are handled during data pre-processing.
+               </p>
+               <p class="common-body-text">
+                  Each of the articles contained in this dataset were encapsulated in the <code>.sgm</code> files as a <code>&lt;REUTERS&gt;</code> element.
+               </p>
+               <p class="common-body-text">
+                  Each <code>&lt;REUTERS&gt;</code> element could contain the following elements:
+               <ul>
+                  <li style="font-size: 20px; margin-bottom: 5px;"><code>&lt;DATE&gt;</code></li>
+                  <li style="font-size: 20px; margin-bottom: 5px;"><code>&lt;TOPICS&gt;</code></li>
+                  <li style="font-size: 20px; margin-bottom: 5px;"><code>&lt;PLACES&gt;</code></li>
+                  <li style="font-size: 20px; margin-bottom: 5px;"><code>&lt;PEOPLE&gt;</code></li>
+                  <li style="font-size: 20px; margin-bottom: 5px;"><code>&lt;ORGS&gt;</code></li>
+                  <li style="font-size: 20px; margin-bottom: 5px;"><code>&lt;COMPANIES&gt;</code></li>
+                  <li style="font-size: 20px; margin-bottom: 5px;"><code>&lt;TITLE&gt;</code></li>
+                  <li style="font-size: 20px; margin-bottom: 5px;"><code>&lt;DATELINE&gt;</code></li>
+                  <li style="font-size: 20px; margin-bottom: 5px;"><code>&lt;TEXT&gt;</code></li>
+                  <li style="font-size: 20px; margin-bottom: 5px;"><code>&lt;UNKNOWN&gt;</code></li>
+               </ul>
+               </p>
+               <p class="common-body-text">
+                  Not all of the <code>&lt;REUTERS&gt;</code> elements contained elements for each of the tags described above. There was sometimes not present data (e.g. some articles didn't mention any significant individual people, so there was nothing listed in the <code>&lt;PEOPLE&gt;</code> tag or the <code>&lt;PEOPLE&gt;</code> was entirely not present) and missing data (very often noted by the <code>"Blah blah blah."</code> string).
+               </p>
+               <h3>Dataset Pre-Processing Broad Overview</h3>
+               <p class="common-body-text">
+                  This section will broadly go over the pre-processing pipeline.
+               </p>
+               <p class="common-body-text">
+                  I used <a href="https://www.crummy.com/software/BeautifulSoup/bs4/doc/">Beautiful Soup</a> to parse the <code>.sgm</code> files.
+               </p>
+               <p class="common-body-text">
+                  The pre-processing pipeline generates two files, <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/all_extracted_data.csv"><code>all_extracted_data.csv</code></a> and <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a>.
+               </p>
+               <p class="common-body-text">
+                  <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/all_extracted_data.csv"><code>all_extracted_data.csv</code></a> contains all the data present in the <code>.sgm</code> files in a <code>.csv</code> format. A row is generated for each article, i.e. <code>&lt;REUTERS&gt;</code> element, that has sufficient data (some <code>&lt;REUTERS&gt;</code> elements are corrupt or empty). 
+               </p>
+               <p class="common-body-text">
+                  <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a> contains the <a href="https://en.wikipedia.org/wiki/Database_normalization">normalized</a> <code>&lt;TOPICS&gt;</code> data along with the corresponding article. 
+               </p>
+               <p class="common-body-text">
+                  The dataset pre-processing pipeline is:
+               <ol>
+                  <li>Extract all of the <code>&lt;REUTERS&gt;</code> elements from the 22 <code>.sgm</code> files.</li>
+                  <li>
+                     From each <code>&lt;REUTERS&gt;</code> article, extract:
+                     <ul style="padding-top: 20px">
+                        <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the article date via <code>&lt;DATE&gt;</code>.</li>
+                        <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of a topics (a string with comma separated values, e.g. <code>"crude, ship, oil"</code>) via <code>&lt;TOPICS&gt;</code>.</li>
+                        <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of places mentioned in the article via <code>&lt;PLACES&gt;</code>.</li>
+                        <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of people mentioned in the article via <code>&lt;PEOPLE&gt;</code>.</li>
+                        <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of organizations mentioned in the article via <code>&lt;ORGS&gt;</code>.</li>
+                        <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of companies mentioned in the article via <code>&lt;COMPANIES&gt;</code>.</li>
+                        <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the article title via <code>&lt;TITLE&gt;</code>.</li>
+                        <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the article <a href="https://en.wikipedia.org/wiki/Dateline">dateline</a> via <code>&lt;DATELINE&gt;</code>.</li>
+                        <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the raw original article text via <code>&lt;TEXT&gt;</code>.</li>
+                        <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the preprocessed article text (I'll cover this in detail momentarily).</li>
+                        <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">whatever arbitrary content is in the <code>&lt;UNKNOWN&gt;</code> element.</li>
+                     </ul>
+                  </li>
+                  <li>The above data (along with the ordinal position of the <code>&lt;REUTERS&gt;</code> element within the <code>.sgm</code> file and the name of the relevant <code>.sgm</code> file) is stored in <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/all_extracted_data.csv"><code>all_extracted_data.csv</code></a>. <code>&lt;REUTERS&gt;</code> elements with an empty or corrupt <code>&lt;TEXT&gt;</code> sub-element are not included.</li>
+                  <li>The topics data is then <a href="https://en.wikipedia.org/wiki/Database_normalization">normalized</a> to create <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a>. Topics with an sufficient number of associated articles were removed. Each topic was forced to have at least 200 articles as most models are incapable of learning to associate topics given an insufficient number of samples.</li>
+               </ol>
+               </p>
+               <p class="common-body-text">
+                  The article text pre-processining pipeline is (in order):
+               <ol>
+                  <li>Lower case the string.</li>
+                  <li>Fix common typos, e.g. "<code>"s</code>" was often used in place of "<code>'s</code>" in the raw text.</li>
+                  <li><a href="https://en.wikipedia.org/wiki/Ellipsis">Ellipsis</a> collapsing (i.e. replacing all text matching the reguular expression <code>"\.\.\.\.+"</code> with the string <code>"..."</code>).</li>
+                  <li>Replacing numbers with a special <code>NUMBER</code> token (in order to decrease the unknown token count).</li>
+                  <li><a href="https://en.wikipedia.org/wiki/Contraction_(grammar)">Contraction</a> expansion.</li>
+                  <li>White space stripping.</li>
+                  <li><a href="https://en.wikipedia.org/wiki/Stop_words">Stopword</a> removal.</li>
+                  <li><a href="https://en.wikipedia.org/wiki/Lemmatisation">Lemmatization</a>.</li>
+               </ol>
+               </p>
+               <p class="common-body-text">
+                  Here's a sample of <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/all_extracted_data.csv"><code>all_extracted_data.csv</code></a>:
+               <div style="margin-left: 15vw; width: 70vw; overflow-x: scroll; border: 1px solid #999;">
+                  <table class="pandas-dataframe">
+                     <thead>
+                        <tr style="text-align: right;">
+                           <th></th>
+                           <th>date</th>
+                           <th>topics_raw_string</th>
+                           <th>places</th>
+                           <th>people</th>
+                           <th>orgs</th>
+                           <th>exchanges</th>
+                           <th>companies</th>
+                           <th>unknown</th>
+                           <th>text_title</th>
+                           <th>text_dateline</th>
+                           <th>raw_text</th>
+                           <th>text</th>
+                           <th>file</th>
+                           <th>reuter_element_position</th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                        <tr>
+                           <th>0</th>
+                           <td>2-JUN-1987 10:04:07.81</td>
+                           <td>['cpi']</td>
+                           <td>['brazil']</td>
+                           <td>['sarney']</td>
+                           <td>[]</td>
+                           <td>[]</td>
+                           <td>[]</td>
+                           <td>[" \n\x05\x05\x05C\n\x16\x16\x01f1027\x1freute...</td>
+                           <td>BRAZIL'S SARNEY RENEWS CALL FOR WAR ON INFLATION</td>
+                           <td>BRASILIA, June 2 -</td>
+                           <td>President Jose Sarney today declared "a\nwar w...</td>
+                           <td>president jose sarney today declare "a war wit...</td>
+                           <td>./data/reut2-018.sgm</td>
+                           <td>0</td>
+                        </tr>
+                        <tr>
+                           <th>1</th>
+                           <td>2-JUN-1987 10:05:19.67</td>
+                           <td>[]</td>
+                           <td>['usa']</td>
+                           <td>[]</td>
+                           <td>[]</td>
+                           <td>[]</td>
+                           <td>[]</td>
+                           <td>[' \n\x05\x05\x05V RM\n\x16\x16\x01f1034\x1fre...</td>
+                           <td>U.S. HOME SALES ROSE 7.6 PCT IN APRIL</td>
+                           <td>WASHINGTON, June 2 -</td>
+                           <td>Sales of new, single-family homes rose\n7.6 pc...</td>
+                           <td>sale new, single-family home rise &lt;NUMBER&gt; . &lt;...</td>
+                           <td>./data/reut2-018.sgm</td>
+                           <td>2</td>
+                        </tr>
+                        <tr>
+                           <th>2</th>
+                           <td>2-JUN-1987 10:06:06.42</td>
+                           <td>[]</td>
+                           <td>['uk']</td>
+                           <td>[]</td>
+                           <td>[]</td>
+                           <td>[]</td>
+                           <td>[]</td>
+                           <td>[' \n\x05\x05\x05RM\n\x16\x16\x01f1036\x1freut...</td>
+                           <td>BRIXTON ESTATE LAUNCHES UNLIMITED STG CP PROGRAM</td>
+                           <td>LONDON, June 2 -</td>
+                           <td>Brixton Estate Plc is establishing a\nsterling...</td>
+                           <td>brixton estate plc establish sterling commerci...</td>
+                           <td>./data/reut2-018.sgm</td>
+                           <td>3</td>
+                        </tr>
+                        <tr>
+                           <th>3</th>
+                           <td>2-JUN-1987 10:06:53.99</td>
+                           <td>[]</td>
+                           <td>['usa']</td>
+                           <td>['reagan', 'volcker', 'greenspan', 'james-baker']</td>
+                           <td>[]</td>
+                           <td>[]</td>
+                           <td>[]</td>
+                           <td>[' \n\x05\x05\x05V RM\n\x16\x16\x01f1037\x1fre...</td>
+                           <td>REAGAN SAYS VOLCKER WILL NOT SERVE NEW TERM</td>
+                           <td>WASHINGTON, June 2 -</td>
+                           <td>President Reagan said Paul Volcker has\ndeclin...</td>
+                           <td>president reagan say paul volcker decline serv...</td>
+                           <td>./data/reut2-018.sgm</td>
+                           <td>4</td>
+                        </tr>
+                        <tr>
+                           <th>4</th>
+                           <td>2-JUN-1987 10:11:04.12</td>
+                           <td>[]</td>
+                           <td>['belgium']</td>
+                           <td>[]</td>
+                           <td>[]</td>
+                           <td>[]</td>
+                           <td>[]</td>
+                           <td>[' \n\x05\x05\x05RM\n\x16\x16\x01f1051\x1freut...</td>
+                           <td>BELGIAN PUBLIC SPENDING DEFICIT FALLS IN MAY</td>
+                           <td>BRUSSELS, June 2 -</td>
+                           <td>Belgium's public expenditure deficit\nfell sha...</td>
+                           <td>belgium's public expenditure deficit fell shar...</td>
+                           <td>./data/reut2-018.sgm</td>
+                           <td>5</td>
+                        </tr>
+                     </tbody>
+                  </table>
+               </div>
+               </p>
+               <p class="common-body-text">
+                  There were 19,042 rows with sufficient and non-corrupt article text data. 
+               </p>
+               <p class="common-body-text">
+                  There are 14 columns in <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/all_extracted_data.csv"><code>all_extracted_data.csv</code></a> that correspond to what was discussed in the dataset pre-processing pipeline overview above. 
+               </p>
+               <p class="common-body-text">
+                  Note that some columns contain strings that denote via comma-separation multiple values. The data in these columns are <a href="https://en.wikipedia.org/wiki/Database_normalization">unnormalized</a>. The topics are stored in such a column. <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a> contains the <a href="https://en.wikipedia.org/wiki/Database_normalization">normalized</a> topic data.
+               </p>
+               <p class="common-body-text">
+                  Here's a sample of <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a> via <a href="https://pandas.pydata.org/">Pandas</a>:
+               <div style="margin-left: 15vw; width: 70vw; overflow-x: scroll; border: 1px solid #999;">
+                  <table class="pandas-dataframe">
+                     <thead>
+                        <tr style="text-align: right;">
+                           <th></th>
+                           <th>text</th>
+                           <th>reuter_element_position</th>
+                           <th>raw_text</th>
+                           <th>text_title</th>
+                           <th>text_dateline</th>
+                           <th>date</th>
+                           <th>file</th>
+                           <th>money-fx</th>
+                           <th>acq</th>
+                           <th>grain</th>
+                           <th>earn</th>
+                           <th>corn</th>
+                           <th>interest</th>
+                           <th>trade</th>
+                           <th>crude</th>
+                           <th>ship</th>
+                           <th>wheat</th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                        <tr>
+                           <th>0</th>
+                           <td>newly-nominated federal reserve board chairman...</td>
+                           <td>11</td>
+                           <td>Newly-nominated Federal Reserve Board\nchairma...</td>
+                           <td>GREENSPAN SEES EVIDENCE DOLLAR FALL OVER</td>
+                           <td>WASHINGTON, June 2 -</td>
+                           <td>2-JUN-1987 10:21:40.24</td>
+                           <td>./data/reut2-018.sgm</td>
+                           <td>True</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                        </tr>
+                        <tr>
+                           <th>1</th>
+                           <td>acme precision product inc say management grou...</td>
+                           <td>16</td>
+                           <td>Acme Precision Products Inc said a\nmanagement...</td>
+                           <td>ACME PRECISION &lt;ACL&gt; BUYOUT BID DROPPED</td>
+                           <td>DETROIT, June 2 -</td>
+                           <td>2-JUN-1987 10:29:31.47</td>
+                           <td>./data/reut2-018.sgm</td>
+                           <td>NaN</td>
+                           <td>True</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                        </tr>
+                        <tr>
+                           <th>2</th>
+                           <td>italy's barley crop generally good condition h...</td>
+                           <td>23</td>
+                           <td>Italy's barley crop is generally in good\ncond...</td>
+                           <td>ITALIAN BARLEY CROP REPORTED IN GOOD CONDITION</td>
+                           <td>ROME, June 2 -</td>
+                           <td>2-JUN-1987 10:35:06.58</td>
+                           <td>./data/reut2-018.sgm</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>True</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                        </tr>
+                        <tr>
+                           <th>3</th>
+                           <td>may two net shr &lt;NUMBER&gt; cts vs eight cts net ...</td>
+                           <td>27</td>
+                           <td>May Two net\n    Shr 11 cts vs eight cts\n    ...</td>
+                           <td>PEP BOYS - MANNY, MOE AND JACK INC &lt;PBY&gt; 1ST QTR</td>
+                           <td>PHILADELPHIA, June 2 -</td>
+                           <td>2-JUN-1987 10:39:23.41</td>
+                           <td>./data/reut2-018.sgm</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>True</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                        </tr>
+                        <tr>
+                           <th>4</th>
+                           <td>elder ixl ltd &lt;elxa.s&gt; say happy leave prefere...</td>
+                           <td>28</td>
+                           <td>Elders IXL Ltd &lt;ELXA.S&gt; says it is happy\nto l...</td>
+                           <td>ELDERS HAPPY TO LEAVE CARLING SHARES OUTSTANDING</td>
+                           <td>TORONTO, June 2 -</td>
+                           <td>2-JUN-1987 10:40:26.29</td>
+                           <td>./data/reut2-018.sgm</td>
+                           <td>NaN</td>
+                           <td>True</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                           <td>NaN</td>
+                        </tr>
+                     </tbody>
+                  </table>
+               </div>
+               </p>
+               <p class="common-body-text">
+                  There were only 8,599 rows with sufficient data for <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocessed_data/topics_data.csv"><code>topics_data.csv</code></a>. This is due to the fact that many of the articles had topics with an insufficient article count (threshold of 200). An insufficient article count would make the development of a well-performing model challenging if not impossible. 
+               </p>
+               <p class="common-body-text">
+                  Most of the data in the original dataset was sparse w.r.t. topic content. There were 10 topics that had a sufficient number of articles.
+               </p>
+               <h3>Problem Selection</h3>
+               <p class="common-body-text">
+                  There are many problem to choose from, e.g. predicting the article title given the article text, extracting the names of the mentioned people or organizations from the text, or generating the dateline given the article text. 
+               </p>
+               <p class="common-body-text">
+                  The problem I chose for this dataset was multi-label topic classification. The goal was to develop a model to predict the possibly many topics associated with each article. This is a <a href="https://en.wikipedia.org/wiki/Multi-label_classification">multi-label classification problem</a>. 
+               </p>
+               <p class="common-body-text">
+                  Here's an example of the desired product:
+               </p>
+               <div id="desired-interface-table">
+                  <table>
+                     <tr>
+                        <td style="text-align: left">
+                           <pre>
 			 <code>
 The Panamanian bulk carrier Juvena is
 still aground outside Tartous, Syria, despite discharging 6,400
@@ -315,10 +494,10 @@ seas.
  Reuter
 			</code>
 		      </pre>
-                     </td>
-                     <td style="text-align: div;font-size:10vw; color: darkviolet;">&#8649;</td>
-                     <td style="text-align: left">
-                        <pre>
+                        </td>
+                        <td style="text-align: div;font-size:10vw; color: darkviolet;">&#8649;</td>
+                        <td style="text-align: left">
+                           <pre>
 			<code>
      acq <strong style="color: grey;">False</strong>
     corn <strong style="color: grey;">False</strong>
@@ -332,11 +511,11 @@ money-fx <strong style="color: grey;">False</strong>
    wheat <strong style="color: purple;">True</strong>
 			</code>
 		      </pre>
-                     </td>
-                  </tr>
-                  <tr>
-                     <td style="text-align: left">
-                        <pre>
+                        </td>
+                     </tr>
+                     <tr>
+                        <td style="text-align: left">
+                           <pre>
 			<code>
 Farmers enrolled over 6.5 mln acres
 of program crops in the latest conservation reserve program
@@ -367,10 +546,10 @@ for publication later this week, they said.
  Reuter
 			</code>
 		      </pre>
-                     </td>
-                     <td style="text-align: div;font-size:10vw; color: darkviolet;">&#8649;</td>
-                     <td style="text-align: left">
-                        <pre>
+                        </td>
+                        <td style="text-align: div;font-size:10vw; color: darkviolet;">&#8649;</td>
+                        <td style="text-align: left">
+                           <pre>
 			<code>
      acq <strong style="color: grey;">False</strong>
     corn <strong style="color: purple;">True</strong>
@@ -384,11 +563,11 @@ money-fx <strong style="color: grey;">False</strong>
    wheat <strong style="color: purple;">True</strong>
 			</code>
 		      </pre>
-                     </td>
-                  </tr>
-                  <tr>
-                     <td style="text-align: left">
-                        <pre>
+                        </td>
+                     </tr>
+                     <tr>
+                        <td style="text-align: left">
+                           <pre>
 			<code>
 
 Sen. David Pryor, D-Ark., said
@@ -408,10 +587,10 @@ Committees.
  Reuter
 			</code>
 		      </pre>
-                     </td>
-                     <td style="text-align: div;font-size:10vw; color: darkviolet;">&#8649;</td>
-                     <td style="text-align: left">
-                        <pre>
+                        </td>
+                        <td style="text-align: div;font-size:10vw; color: darkviolet;">&#8649;</td>
+                        <td style="text-align: left">
+                           <pre>
 			<code>
      acq <strong style="color: grey;">False</strong>
     corn <strong style="color: purple;">True</strong>
@@ -425,14 +604,14 @@ money-fx <strong style="color: grey;">False</strong>
    wheat <strong style="color: purple;">True</strong>
 			</code>
 		      </pre>
-                     </td>
-                  </tr>
-               </table>
+                        </td>
+                     </tr>
+                  </table>
+               </div>
+               <p class="common-body-text">
+                  More details about the methods used to solve this problem come in the <a href="#methods-employed">next section</a>.
+               </p>
             </div>
-            <p class="common-body-text">
-               More details about the methods we used to solve this problem come in the <a href="#methods-employed">next section</a>.
-            </p>
-         </div>
          </div>
          <div id="methods-employed" class="topic-section">
             <center>
@@ -454,39 +633,41 @@ money-fx <strong style="color: grey;">False</strong>
                   </span>
                </h2>
             </center>
-            <div style="opacity:0.05;"><div id="stripes" style="background: blueviolet;"></div></div>
+            <div style="opacity:0.05;">
+               <div id="stripes" style="background: blueviolet;"></div>
+            </div>
             <h3>Evaluation Method</h3>
             <p class="common-body-text">
-               We're attempting to handle a <a href="https://en.wikipedia.org/wiki/Multi-label_classification">multi-label text classification</a> problem.
+               This is a <a href="https://en.wikipedia.org/wiki/Multi-label_classification">multi-label text classification</a> problem.
             </p>
             <p class="common-body-text">
-               Most articles in our dataset have only a few topics. If an article has a few topics, then there are few positive choices and many negative choices. Thus, we have a dataset imbalance. Because of this data imbalance we chose to use the <a href="https://en.wikipedia.org/wiki/F1_score">F1 metric</a> to evaluate the performance of our models. 
+               Most articles in the dataset have only a few topics. If an article has a few topics, then there are few positive choices and many negative choices. Thus, there is a dataset imbalance. Because of this data imbalance, the <a href="https://en.wikipedia.org/wiki/F1_score">F1 metric</a> was chosen to evaluate the performance. 
             </p>
             <h3>Model Results</h3>
             <p class="common-body-text">
-               We implemented 3 neural net models, an RNN, a CNN, and a dense neural network. 
+               I implemented 3 neural net models, an RNN, a CNN, and a dense neural network. 
             </p>
             <p class="common-body-text">
-               We performed random search over the hyperparameter space to determine the best possible score for each model.
+               I performed random search over the hyperparameter space to determine the best possible score for each model.
             </p>
             <p class="common-body-text">
-               We split dataset to allocate 50% of examples for training, 20% of examples for validation, and 30% of examples for testing.
+               I split dataset to allocate 50% of examples for training, 20% of examples for validation, and 30% of examples for testing.
             </p>
             <p class="common-body-text">
-               Our CNN performed the best and got a test set F1 score of <code>0.7655879</code>.
+               The CNN performed the best and got a test set F1 score of <code>0.7655879</code>.
             </p>
             <p class="common-body-text">
-               Our dense neural network did not perform as well and got a test set F1 score of <code>0.6601627</code>.
+               The dense neural network did not perform as well and got a test set F1 score of <code>0.6601627</code>.
             </p>
             <p class="common-body-text">
-               Our RNN performed very poorly a test set F1 score of <code>0.1065762</code>.
+               The RNN performed very poorly a test set F1 score of <code>0.1065762</code>.
             </p>
             <h3>Neural Network Architectures</h3>
             <p class="common-body-text">
-               We'll go over the specifics of the neural network architectures used. 
+               I'll go over the specifics of the neural network architectures used. 
             </p>
             <p class="common-body-text">
-               All of our models used <a href="https://en.wikipedia.org/wiki/Word_embedding">pre-trained word embeddings</a>. Choice of pre-trained word embedding is one of the hyperparameters optimized via random search. The pre-trained word embedding options are shown below:
+               All of the models used <a href="https://en.wikipedia.org/wiki/Word_embedding">pre-trained word embeddings</a>. Choice of pre-trained word embedding is one of the hyperparameters optimized via random search. The pre-trained word embedding options are shown below:
             <ul>
                <li><a href="https://github.com/hassyGo/charNgram2vec">100-dimensional charNgram2vec embeddings</a> (<a href="https://arxiv.org/abs/1611.01587">relevant research paper</a>).</li>
                <li><a href="https://fasttext.cc/docs/en/pretrained-vectors.html">300-dimensional fastText skip-gram embeddings trained on Simple English Wikipedia</a> (<a href="https://arxiv.org/abs/1607.04606">relevant research paper</a>).</li>
@@ -504,7 +685,7 @@ money-fx <strong style="color: grey;">False</strong>
             </ul>
             </p>
             <p class="common-body-text">
-               Below is a description of our CNN's architecture:
+               Below is a description of the CNN's architecture:
             <ol>
                <li>The first layer was an embedding layer.</li>
                <li>The second layer was a set of several parallel convolutional layers that the sequence of beddings were passed through.</li>
@@ -513,7 +694,7 @@ money-fx <strong style="color: grey;">False</strong>
             </ol>
             </p>
             <p class="common-body-text">
-               Below is a description of our RNN's architecture:
+               Below is a description of the RNN's architecture:
             <ol>
                <li>The first layer was an embedding layer.</li>
                <li>The second layer was a bi-directional LSTM encoding layer.</li>
@@ -522,90 +703,93 @@ money-fx <strong style="color: grey;">False</strong>
             </ol>
             </p>
             <p class="common-body-text">
-               Below is a description of our dense neural network's architecture:
+               Below is a description of the dense neural network's architecture:
             <ol>
-               <li>Prior to going through any layers, our input sequence was truncated or padded to a max sequence length (a hyperparameter).</li>
+               <li>Prior to going through any layers, the input sequence was truncated or padded to a max sequence length (a hyperparameter).</li>
                <li>The first layer was an embedding layer.</li>
                <li>The intermediate layers were all fully connected layers (the size of each layer and number of layers were hyperparameters).</li>
                <li>The final layer was a fully connected layer.</li>
             </ol>
             </p>
             <p class="common-body-text">
-	      Some stats regarding our best CNN are:
-	      <table id="hyperparameter-stats">
-		<tr>
-		  <th>Property</th>
-		  <th>Value</th>
-		</tr>
-		<tr>
-		  <td>Number of Epochs to Convergence</td>
-		  <td>16</td>
-		</tr>
-		<tr>
-		  <td>Parameter Count</td>
-		  <td>6,259,190</td>
-		</tr>
-		<tr>
-		  <td>Batch Size</td>
-		  <td>64</td>
-		</tr>
-		<tr>
-		  <td>Vocab Size</td>
-		  <td>15,697</td>
-		</tr>
-		<tr>
-		  <td>Pre-trained Word Embedding</td>
-		  <td><a href="https://fasttext.cc/docs/en/pretrained-vectors.html">300D fastText English Wikipedia skip-gram</a></td>
-		</tr>
-		<tr>
-		  <td>Convolution Layer Hidden Size</td>
-		  <td>256</td>
-		</tr>
-		<tr>
-		  <td>Parallel Convolution Layers' Kernel Sizes</td>
-		  <td>[2, 3, 4, 5, 6]</td>
-		</tr>
-		<tr>
-		  <td>Pooling Method</td>
-		  <td>Max Pooling</td>
-		</tr>
-		<tr>
-		  <td>Dropout Probability</td>
-		  <td>0.5</td>
-		</tr>
-		<tr>
-		  <td>Validation Loss</td>
-		  <td>0.04981713553481713</td>
-		</tr>
-		<tr>
-		  <td>Test F1</td>
-		  <td>0.765587901627576</td>
-		</tr>
-		<tr>
-		  <td>Test Loss</td>
-		  <td>0.05267227948125866</td>
-		</tr>
-	      </table>
+               Some stats regarding the best CNN are:
+            <center>
+               <table id="hyperparameter-stats">
+                  <tr>
+                     <th>Property</th>
+                     <th>Value</th>
+                  </tr>
+                  <tr>
+                     <td>Number of Epochs to Convergence</td>
+                     <td>16</td>
+                  </tr>
+                  <tr>
+                     <td>Parameter Count</td>
+                     <td>6,259,190</td>
+                  </tr>
+                  <tr>
+                     <td>Batch Size</td>
+                     <td>64</td>
+                  </tr>
+                  <tr>
+                     <td>Vocab Size</td>
+                     <td>15,697</td>
+                  </tr>
+                  <tr>
+                     <td>Pre-trained Word Embedding</td>
+                     <td><a href="https://fasttext.cc/docs/en/pretrained-vectors.html">300D fastText English Wikipedia skip-gram</a></td>
+                  </tr>
+                  <tr>
+                     <td>Convolution Layer Hidden Size</td>
+                     <td>256</td>
+                  </tr>
+                  <tr>
+                     <td>Parallel Convolution Layers' Kernel Sizes</td>
+                     <td>[2, 3, 4, 5, 6]</td>
+                  </tr>
+                  <tr>
+                     <td>Pooling Method</td>
+                     <td>Max Pooling</td>
+                  </tr>
+                  <tr>
+                     <td>Dropout Probability</td>
+                     <td>0.5</td>
+                  </tr>
+                  <tr>
+                     <td>Validation Loss</td>
+                     <td>0.04981713553481713</td>
+                  </tr>
+                  <tr>
+                     <td>Test F1</td>
+                     <td>0.765587901627576</td>
+                  </tr>
+                  <tr>
+                     <td>Test Loss</td>
+                     <td>0.05267227948125866</td>
+                  </tr>
+               </table>
+            </center>
+            </br>
             </p>
             <p class="common-body-text">
-               There is always room for more work and we could try several other different models (e.g. <a href="https://en.wikipedia.org/wiki/Latent_Dirichlet_allocation">Latent Dirichlet allocation</a>) and methods as well (e.g. implementing <a href="https://arxiv.org/abs/1703.03130">Zhouhan Lin’s attention regularization</a>). The work presented here does not demonstrate an exhaustive search over all possible known methods and models. This is solely an evaluation of the methods described above.
+               There is always room for more work, e.g trying several other different models (e.g. <a href="https://en.wikipedia.org/wiki/Latent_Dirichlet_allocation">Latent Dirichlet allocation</a>) and methods as well (e.g. implementing <a href="https://arxiv.org/abs/1703.03130">Zhouhan Lin’s attention regularization</a>). The work presented here does not demonstrate an exhaustive search over all possible known methods and models. This is solely an evaluation of the methods described above.
             </p>
             <h3>Loss functions</h3>
             <p class="common-body-text">
-               There are many ways to represent our problem for multi-label classification (some are listed <a href="https://en.wikipedia.org/wiki/Multi-label_classification#Problem_transformation_methods">here</a>). We explored two loss functions, sum of <a href="https://en.wikipedia.org/wiki/Cross_entropy">BCE</a> across all topics and <a href="https://towardsdatascience.com/the-unknown-benefits-of-using-a-soft-f1-loss-in-classification-systems-753902c0105d">Soft-F1</a>. 
+               There are many ways to represent the problem for multi-label classification (some are listed <a href="https://en.wikipedia.org/wiki/Multi-label_classification#Problem_transformation_methods">here</a>). I explored two loss functions, sum of <a href="https://en.wikipedia.org/wiki/Cross_entropy">BCE</a> across all topics and <a href="https://towardsdatascience.com/the-unknown-benefits-of-using-a-soft-f1-loss-in-classification-systems-753902c0105d">Soft-F1</a>. 
             </p>
             <p class="common-body-text">
-               We used both functions but found that neither seemed to lead to a better F1 score than the other.
+               I used both functions but found that neither seemed to lead to a better F1 score than the other.
             </p>
             <h3>Data Imbalance</h3>
             <p class="common-body-text">
-               With binary classification problems, data imbalance can be solved easily through oversampling or undersampling as there are only two categories to balance. We sample until the two categories are the same size. For single-label multi-class classification, we can employ a similar method. 
+               With binary classification problems, data imbalance can be solved easily through oversampling or undersampling as there are only two categories to balance. Sample until the two categories are the same size. For single-label multi-class classification, a similar method can be used. 
             </p>
             <p class="common-body-text">
                With multi-label classification, the problem of determining which oversampling or undersampling is not clear. 
             </p>
             <p class="common-body-text">
-               Our understanding is that there are two classes of methods for handling data imbalance, generating samples over a discrete space and generating samples over a continuous space. 
+               My understanding is that there are two classes of methods for handling data imbalance, generating samples over a discrete space and generating samples over a continuous space. 
             </p>
             <p class="common-body-text">
                Example methods of generating samples over a discrete space might include:
@@ -622,109 +806,109 @@ money-fx <strong style="color: grey;">False</strong>
             </ul>
             </p>
             <p class="common-body-text">
-               For NLP, it seems that generating samples over a continuous space isn’t always applicable, and it is not obvious from the current literature that this would be effective in the NLP. One possible method of doing this might be using SMOTE (or some similar method) to generate synthetic sequences of word embeddings. Since it wasn't clear that this was a promising path, we did nto prioritize exploring this option. Results from this will come in the future.
+               For NLP, it seems that generating samples over a continuous space isn’t always applicable, and it is not obvious from the current literature that this would be effective in the NLP. One possible method of doing this might be using SMOTE (or some similar method) to generate synthetic sequences of word embeddings. Since it wasn't clear that this was a promising path, I did not prioritize exploring this option. Results from this investigation will come in the future.
             </p>
             <p class="common-body-text">
-               For generating samples over a discrete space, data-augmentation is a known method that works (e.g. <a href="https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge/discussion/52557">Kaggle competitors have augmented their data by translating to a different language and translating back to the original language</a>; people have also augmented text by using synonym replacement). This helps augment the data and give a richer input dataset, but the labels might still be unbalanced, especially for a multi-label dataset.
+               For generating samples over a discrete space, data-augmentation is a known method that works (e.g. <a href="https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge/discussion/52557">Kaggle competitors have augmented their data by translating to a different language and back to the original language</a>; text data has also been augmented via synonym replacement). Data augmentation creates a richer input dataset, but the labels may still be unbalanced, especially for a multi-label dataset.
             </p>
             <p class="common-body-text">
-               As far as we could tell, selecting which samples to oversample or undersample and by how much is not clear since some samples might decrease imbalance by incrementing one underrepresented label’s count but increase imbalance by incrementing an overrepresented label’s count.
+               As far as I could tell, selecting which samples to oversample or undersample and by how much is not clear since some samples might decrease imbalance by incrementing one underrepresented label’s count but increase imbalance by incrementing an overrepresented label’s count.
             </p>
             <p class="common-body-text">
-	      We'll below present our (possibly novel? Hopefully more easily findable) method of solving this problem.
+               I'll below present my (possibly novel?) method of solving this problem.
             </p>
             <p class="common-body-text">
-              This seems to be an <a href="https://en.wikipedia.org/wiki/Integer_programming">integer programming problem</a> (and <a href="https://en.wikipedia.org/wiki/NP-completeness">NP-complete</a>). We can approximately solve this by oversampling or undersampling datapoints such that the label histogram reflects a <a href="https://en.wikipedia.org/wiki/Uniform_distribution_(continuous)">uniform distribution</a>.
+               Balancing a dataset can be thought of as an <a href="https://en.wikipedia.org/wiki/Integer_programming">integer programming problem</a>. The complexity is <a href="https://en.wikipedia.org/wiki/NP-completeness">NP-complete</a>. This problem can be approximately solved by oversampling or undersampling datapoints such that the label histogram reflects a <a href="https://en.wikipedia.org/wiki/Uniform_distribution_(continuous)">uniform distribution</a>.
             </p>
             <p class="common-body-text">
-              We can have a datapoint occur <code>N</code> times (<code>N<1</code> leads to undersampling the datapoint; <code>N>1</code> leads to oversampling the datapoint). Different choices in <code>N</code> for each datapoint will lead to different label distributions. 
+               A datapoint can occur <code>N</code> times (<code>N<1</code> leads to undersampling the datapoint; <code>N>1</code> leads to oversampling the datapoint). Different choices in <code>N</code> for each datapoint will lead to different final label distributions. 
             </p>
             <p class="common-body-text">
-               We can calculate how different the label distribution is from a <a href="https://en.wikipedia.org/wiki/Uniform_distribution_(continuous)">uniform distribution</a> using the <a href="https://en.wikipedia.org/wiki/Chi-squared_test">Chi-Squared test</a>. 
+               How different the label distribution is from a <a href="https://en.wikipedia.org/wiki/Uniform_distribution_(continuous)">uniform distribution</a> can be calculated using the <a href="https://en.wikipedia.org/wiki/Chi-squared_test">Chi-Squared test</a>. 
             </p>
             <p class="common-body-text">
-               If we constrain the choices for <code>N</code> to be an integer, this will be an <a href="https://en.wikipedia.org/wiki/NP-completeness">NP-complete</a> <a href="https://en.wikipedia.org/wiki/Integer_programming">integer programming problem</a>. If we let <code>N</code> be continuous, we can optimize this since the <a href="https://en.wikipedia.org/wiki/Chi-squared_test">Chi-Squared test</a> is differentiable. We can get an approximate solution by truncating the <code>N</code>.
+               If <code>N</code> is constrained to be an integer, this will be an <a href="https://en.wikipedia.org/wiki/NP-completeness">NP-complete</a> <a href="https://en.wikipedia.org/wiki/Integer_programming">integer programming problem</a>. If <code>N</code> is allowed to be be continuous, this problem is tractable since the <a href="https://en.wikipedia.org/wiki/Chi-squared_test">Chi-Squared test</a> is differentiable. An approximate solution can be achieved by truncating the <code>N</code> value for each sample.
             </p>
             <p class="common-body-text">
                Other differentiable objective functions can be chosen (some good ideas can be found in <a href="https://en.wikipedia.org/wiki/Exact_test">here</a>, <a href="https://en.wikipedia.org/wiki/Statistical_significance">here</a>, and <a href="https://en.wikipedia.org/wiki/Goodness_of_fit">here</a>). Exploring these options would be interesting future work. 
             </p>
             <p class="common-body-text">
-              Though this was an interesting and fun idea to explore, we tried to oversample the dataset by varying amounts up to 3x the size of the original dataset while minimizing the label distributions difference from a uniform distribution. No noticeable improvement was found. 
+               Though this was an interesting and fun idea to explore, oversampling the dataset using this method by varying amounts up to 3x the size of the original dataset while minimizing the label distributions difference from a uniform distribution achieved no noticeable improvement. 
             </p>
             <p class="common-body-text">
-              We believe that this method might in general be useful for cases where data imbalance causes problems, but it might not be useful for this given dataset due to the small size where the data imbalance is not the dominating issue.
+               I believe that this method might be useful for cases where data imbalance causes problems, but it might not be useful for this given dataset due to the small size where the data imbalance is not the dominating issue.
             </p>
             <h3>Data Augmentation</h3>
             <p class="common-body-text">
-               We attempted to use <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network#Artificial_data">data augmentation</a> to enhance performance. 
+               I attempted to use <a href="https://en.wikipedia.org/wiki/Convolutional_neural_network#Artificial_data">data augmentation</a> to enhance performance. 
             </p>
             <p class="common-body-text">
-               We augmented our data by randomly replacing words with the UNK token.
+               The data was augmented by randomly replacing words with the <code>UNK</code> token.
             </p>
             <p class="common-body-text">
-               We tried this with several probabilities (up to 70%).
+               This was tried with several probabilities (up to 70%).
             </p>
             <p class="common-body-text">
-               We saw no noticeable improvement in F1 score across all of our models. 
+               I saw no noticeable improvement in F1 score across all of the models. 
             </p>
             <p class="common-body-text">
-               The most salient change observed was that the convergence of the CNN and dense neural network slowed by about 2-3 epochs, but they both converged to approximately what they normally would without the data augmentation. 
+               The most salient change observed was that the convergence of the CNN and dense neural network slowed by about 2-3 epochs, but they both eventually converged to approximately what they normally would without the data augmentation. 
             </p>
             <p class="common-body-text">
-               For future work, another possible method we could've explored was replacing words with synonyms (possibly restricting the synonym choices to only those present in the training set rather than all possible synonyms in the English language). 
+               For future work, another possible method worth exploring would be replacing words with synonyms (possibly restricting the synonym choices to only those present in the training set rather than all possible synonyms in the English language). 
             </p>
             <h3>F1 Threshold Optimization</h3>
             <p class="common-body-text">
                When deep neural networks are used in practice to classify samples, the continuous output of the network is discretized frequently using a <a href="https://en.wikipedia.org/wiki/Rounding">round function</a>. This simply sets the threshold at <code>0.5</code>.
             </p>
             <p class="common-body-text">
-               Inspired by the idea of threshold selection when reviewing how <a href="https://en.wikipedia.org/wiki/Receiver_operating_characteristic">ROC curves</a> are used with <a href="https://en.wikipedia.org/wiki/Logistic_regression">logistic regression models</a>, we realized that using a threshold of <code>0.5</code> is likely sufficient but not globally optimal. 
+               Inspired by the idea of threshold selection when reviewing how <a href="https://en.wikipedia.org/wiki/Receiver_operating_characteristic">ROC curves</a> are used with <a href="https://en.wikipedia.org/wiki/Logistic_regression">logistic regression models</a>, I realized that using a threshold of <code>0.5</code> is likely sufficient but not globally optimal. 
             </p>
             <p class="common-body-text">
                A model might have a <a href="https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff">bias</a> that it cannot overcome that'll prevent the positive predictions for a label to be exactly 1 or exactly 0 for a negative prediction. Because of this, it is not clear that for a given label the positive predictions and negative predictions would be centered around <code>0.5</code>.
             </p>
             <p class="common-body-text">
-               Thus, we experimented with naively optimizing the threshold with which we would discretize our neural network outputs. 
+               Thus, I experimented with naively optimizing the threshold for discretizing the neural network outputs. 
             </p>
             <p class="common-body-text">
-               Our naive method was to chose the threshold for each label to be the center point of the mean of the positive predictions for the label and the mean of the negative predictions for the label . 
+               The naive method was to chose the threshold for each label to be the center point of the mean of the positive predictions for the label and the mean of the negative predictions for the label . 
             </p>
             <p class="common-body-text">
-              This led to a testing F1 score increase of about <code>0.025</code> on all of our models. 
+               This led to a testing F1 score increase of about <code>0.025</code> for all of the models. 
             </p>
             <p class="common-body-text">
-              This small but noticeable improvement might be worth investigating further in the future by appropriately accounting for outliers in the center point calculation using a <a href="https://en.wikipedia.org/wiki/Standard_deviation">standard deviation</a> threshold. Another option would be to exclude <a href="https://en.wikipedia.org/wiki/False_positives_and_false_negatives">false positives and false negatives</a>.
+               This small but noticeable improvement might be worth investigating further in the future by appropriately accounting for outliers in the center point calculation using a <a href="https://en.wikipedia.org/wiki/Standard_deviation">standard deviation</a> threshold. Another option worth exploring would be to exclude <a href="https://en.wikipedia.org/wiki/False_positives_and_false_negatives">false positives and false negatives</a>.
             </p>
             <h3>Stopword Removal</h3>
             <p class="common-body-text">
-               We removed <a href="https://en.wikipedia.org/wiki/Stop_words">stopwords</a> during data pre-processing. 
+               <a href="https://en.wikipedia.org/wiki/Stop_words">stopwords</a> were removed during data pre-processing. 
             </p>
             <p class="common-body-text">
-               This increased the testing F1 score by about <code>0.08</code> in our CNN and dense neural network. 
+               This increased the testing F1 score by about <code>0.08</code> in the CNN and dense neural network. 
             </p>
             <p class="common-body-text">
-               This led to no noticeable improvement in our RNN.
+               This led to no noticeable improvement in the RNN.
             </p>
             <p class="common-body-text">
-	      We used <a href="https://www.nltk.org/">NLTK</a>'s English <a href="https://en.wikipedia.org/wiki/Stop_words">stopword</a> list for <a href="https://en.wikipedia.org/wiki/Stop_words">stopword</a> removal via <code>nltk.corpus.stopwords.words('english')</code>.
+               I used <a href="https://www.nltk.org/">NLTK</a>'s English <a href="https://en.wikipedia.org/wiki/Stop_words">stopword</a> list for <a href="https://en.wikipedia.org/wiki/Stop_words">stopword</a> removal via <code>nltk.corpus.stopwords.words('english')</code>.
             </p>
             <h3>Contraction Expansion</h3>
             <p class="common-body-text">
-               We expanded <a href="https://en.wikipedia.org/wiki/Contraction_(grammar)">contractions</a> during data pre-processing. It yielded no noticeable improvement for any of our models. 
+               <a href="https://en.wikipedia.org/wiki/Contraction_(grammar)">Contractions</a> were expanded during data pre-processing. It yielded no noticeable improvement for any of the models. 
             </p>
             <p class="common-body-text">
-	      We implemented our own contraction/shorthand expander. The list of contractions and shorthand can be found <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocess_data.py#L47">here</a>.
+               I manually implemented the contraction/shorthand expander. The list of contractions and shorthand can be found <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocess_data.py#L47">here</a>.
             </p>
             <h3>Number Tokenization</h3>
             <p class="common-body-text">
-               We replaced numbers, e.g. <code>"9"</code>, <code>"3/4"</code>, <code>"1.3"</code>, <code>"1,256,412"</code>, with a special <code>NUMBER</code> token. While this drastically decreased our <code>UNK</code> count in the data and the total number of unknown words (which is expected), it yielded no noticeable improvement for any of our models. It did help us reduce the noise when investigating the impact of unknown words.
+               Numbers, e.g. <code>"9"</code>, <code>"3/4"</code>, <code>"1.3"</code>, <code>"1,256,412"</code>, were replaced with a special <code>NUMBER</code> token. While this drastically decreased the <code>UNK</code> count in the data and the total number of unknown words (which is expected), it yielded no noticeable improvement for any of the models. It did help reduce the noise when investigating the impact of unknown words.
             </p>
             <h3>Lemmatization</h3>
             <p class="common-body-text">
-               We employed <a href="https://en.wikipedia.org/wiki/Lemmatisation">lemmatization</a> during our data pre-processing. It yielded no noticeable improvement for any of our models. 
+               I employed <a href="https://en.wikipedia.org/wiki/Lemmatisation">lemmatization</a> during the data pre-processing. It yielded no noticeable improvement for any of the models. 
             </p>
             <p class="common-body-text">
-	      We used <a href="https://www.nltk.org/">NLTK</a>'s <a href="https://wordnet.princeton.edu/">WordNet</a> <a href="https://en.wikipedia.org/wiki/Lemmatisation">lemmatizer</a> via <code>nltk.stem.WordNetLemmatizer()</code>.
+               I used <a href="https://www.nltk.org/">NLTK</a>'s <a href="https://wordnet.princeton.edu/">WordNet</a> <a href="https://en.wikipedia.org/wiki/Lemmatisation">lemmatizer</a> via <code>nltk.stem.WordNetLemmatizer()</code>.
             </p>
          </div>
          <div id="implementation-details" class="topic-section">
@@ -744,19 +928,20 @@ money-fx <strong style="color: grey;">False</strong>
                </h2>
             </center>
             <p class="common-body-text">
-	      In this section, we'll go over how to use the code that we've implemented <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling">here</a>. Much of this information is specific to our implementation, so this section is only useful for those who might want to experiemtn with our code directly. 
+               In this section, I'll go over how to use the code that I've implemented <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling">here</a>. Much of this information is specific to my implementation, so this section is only useful for those who might want to experiment with my code directly. 
             </p>
             <p class="common-body-text">
-	      We intend for our code to be fairly platform independent via our <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/environment.yml">environment.yml</a>. If you're having trouble, please let me know. If you're not familiar with managing environments with <a href="https://docs.conda.io/en/latest/">conda</a>, helpful documentation can be found <a href="https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html">here</a>.
+               I intend for the code to be fairly platform independent via the <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/environment.yml">environment.yml</a>. If you're not familiar with managing environments with <a href="https://docs.conda.io/en/latest/">conda</a>, helpful documentation can be found <a href="https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html">here</a>.
             </p>
             <p class="common-body-text">
-	      If you have <a href="https://docs.conda.io/en/latest/">conda</a> installed, simply running <code>conda env create ; conda activate reuters</code> from the checkout directory will handle all dependency issues.
+               If you have <a href="https://docs.conda.io/en/latest/">conda</a> installed, simply running <code>conda env create ; conda activate reuters</code> from the checkout directory will handle all dependency issues.
             </p>
             <p class="common-body-text">
+               If you're having trouble, <a href="mailto:paul.tqh.nguyen@gmail.com">please let me know</a>. 
             </p>
-	    <h3>Command-Line Interface</h3>
+            <h3>Command-Line Interface</h3>
             <p class="common-body-text">
-	      Much of the functionality discussed in this document can be utilized via our CLI.
+               Much of the functionality discussed in this document can be utilized via the CLI.
             <pre>
 		<code>
 pnguyen@pnguyenmachine:/tmp/reuters_topic_labelling$ ./main.py
@@ -774,25 +959,25 @@ pnguyen@pnguyenmachine:/tmp/reuters_topic_labelling$
 		</code>
 	    </pre>
             </p>
-	    <h3>Data Pre-processing</h3>
+            <h3>Data Pre-processing</h3>
             <p class="common-body-text">
-	      We used <a href="https://www.crummy.com/software/BeautifulSoup/bs4/doc/">Beautiful Soup</a> to parse the <code>.sgm</code> files. 
+               I used <a href="https://www.crummy.com/software/BeautifulSoup/bs4/doc/">Beautiful Soup</a> to parse the <code>.sgm</code> files. 
             </p>
             <p class="common-body-text">
-	      We used <a href="https://docs.python.org/3/library/multiprocessing.html">Python's native multiprocessing library</a> to process each <code>.sgm</code> file independently. 
+               I used <a href="https://docs.python.org/3/library/multiprocessing.html">Python's native multiprocessing library</a> to process each <code>.sgm</code> file independently and in parallel. 
             </p>
             <p class="common-body-text">
-	      We used <a href="https://www.nltk.org/">NLTK</a>'s English <a href="https://en.wikipedia.org/wiki/Stop_words">stopword</a> list for <a href="https://en.wikipedia.org/wiki/Stop_words">stopword</a> removal via <code>nltk.corpus.stopwords.words('english')</code>.
+               I used <a href="https://www.nltk.org/">NLTK</a>'s English <a href="https://en.wikipedia.org/wiki/Stop_words">stopword</a> list for <a href="https://en.wikipedia.org/wiki/Stop_words">stopword</a> removal via <code>nltk.corpus.stopwords.words('english')</code>.
             </p>
             <p class="common-body-text">
-	      We implemented our own contraction/shorthand expander. The list of contractions and shorthand can be found <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocess_data.py#L47">here</a>.
+               I implemented the contraction/shorthand expander manually rather than using an external library. The list of contractions and shorthand can be found <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocess_data.py#L47">here</a>.
             </p>
             <p class="common-body-text">
-	      We used <a href="https://www.nltk.org/">NLTK</a>'s <a href="https://wordnet.princeton.edu/">WordNet</a> <a href="https://en.wikipedia.org/wiki/Lemmatisation">lemmatizer</a> via <code>nltk.stem.WordNetLemmatizer()</code>.
+               I used <a href="https://www.nltk.org/">NLTK</a>'s <a href="https://wordnet.princeton.edu/">WordNet</a> <a href="https://en.wikipedia.org/wiki/Lemmatisation">lemmatizer</a> via <code>nltk.stem.WordNetLemmatizer()</code>.
             </p>
             <p class="common-body-text">
-	      One can easily instantiate our data pre-processing vlia our command-line interface:
-	      <pre>
+               One can easily instantiate the data pre-processing via the command-line interface:
+            <pre>
 		<code>
 pnguyen@pnguyenmachine:/tmp/reuters_topic_labelling$ ./main.py -preprocess-data
 Parsing .sgm files.
@@ -812,18 +997,18 @@ pnguyen@pnguyenmachine:/tmp/reuters_topic_labelling$
 		</code>
 	      </pre>
             </p>
-	    <h3>Deep Learning Models</h3>
+            <h3>Deep Learning Models</h3>
             <p class="common-body-text">
-	      We'll now go over how to use our deep learning models.
+               I'll now go over how to use the deep learning models.
             </p>
             <p class="common-body-text">
-	      We used <a href="https://pytorch.org/">PyTorch</a> and <a href="https://pytorch.org/text/">TorchText</a> to implement our models.
+               I used <a href="https://pytorch.org/">PyTorch</a> and <a href="https://pytorch.org/text/">TorchText</a> to implement the models.
             </p>
             <p class="common-body-text">
-	      We'll just show how to use our CNN for now. Use of our other models will be analogous.
+               I'll show how to use the CNN for now. Use of the other models will be analogous.
             </p>
             <p class="common-body-text">
-	      <pre>
+            <pre>
 		<code>
 &gt;&gt;&gt; from torch.nn.functional import max_pool1d, avg_pool1d, adaptive_avg_pool1d, adaptive_max_pool1d, lp_pool1d
 &gt;&gt;&gt; NUMBER_OF_EPOCHS = 100
@@ -960,21 +1145,13 @@ but not extend the exemption to all farmers, Lyng's aide said.
 	      </pre>
             </p>
             <p class="common-body-text">
-	      NB: Testing only happens when a new validation minimum is achieved and at the end of training.
+               NB: Testing only happens when a new validation minimum is achieved and at the end of training.
             </p>
             <p class="common-body-text">
-	      NB: Training ends when convergence is achieved, i.e. when 5 epochs pass without a new validation minimum.
+               NB: Training ends when convergence is achieved, i.e. when 5 epochs pass without a new validation minimum.
             </p>
             <p class="common-body-text">
-	      If you're interested in using our RNN or dense neural network, consider using our <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/models.py"><code>EEAPClassifier</code></a> and <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/models.py"><code>DenseClassifier</code></a> classes. Usage will be analogous to what's shown above.
-            </p>
-            <p class="common-body-text">
-            </p>
-            <p class="common-body-text">
-            </p>
-            <p class="common-body-text">
-            </p>
-            <p class="common-body-text">
+               If you're interested in using the RNN or dense neural network, consider using the <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/models.py"><code>EEAPClassifier</code></a> and <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/models.py"><code>DenseClassifier</code></a> classes. Usage will be analogous to what's shown above.
             </p>
          </div>
          <div id="conclusion" class="topic-section">
@@ -990,15 +1167,139 @@ but not extend the exemption to all farmers, Lyng's aide said.
                   </span>
                </h2>
             </center>
-            <div style="opacity:0.05;"><div id="stripes" style="background: darkviolet;"></div></div>
+            <div style="opacity:0.05;">
+               <div id="stripes" style="background: darkviolet;"></div>
+            </div>
             <p class="common-body-text">
-               According to Knuth's definition, a B-tree of order
+               The biggest lesson is that it is much more practical to use a Jupyter Notebook to write up notes and findings than it is to write an HTML page. 
             </p>
+            <p class="common-body-text">
+               As far as the other lessons go, they fall into two <i>overlapping</i> categories, deep-learning engineering practices/theory and software engineering practices. 
+            </p>
+            <h3>Deep-learning Lessons</h3>
+            <h4>RNNs are not the King/Queen of NLP</h4>
+            <p class="common-body-text">
+               RNNs aren’t everything. RNNs don’t solve all NLP problems. It is easy to fall into the trap (that I did) of thinking that simply because text data is sequential that an RNN is the best model for the job. 
+            </p>
+            <p class="common-body-text">
+               This is a variation on the idea that not the “hottest” or coolest or newest technology is the best. You always want to use the best tool for the job, not the coolest. You want to pick the best tool for the job. If you have a simpler tool that does the job better, use it. Once you have the problem, you’re picking the tool, not the problem. Don’t try to force the tool to solve the problem. Sometimes, it simply can’t. It’s like trying to fit a square peg into a round hole. Even if it slides in, it might not fit the hole best. 
+            </p>
+            <p class="common-body-text">
+               I did this when trying to use LSTM+Attention. I spent a lot of time trying to figure out what was wrong and seeing if there were any bugs. I was getting a lot of bad performance and marginal returns with all my efforts and new ideas (e.g. the idea to optimize the F1 threshold; decent idea but minimal gains). Once I tried other simpler and less cool methods, e.g. the CNN, I got way better results. 
+            </p>
+            <h4>Start with simpler models and only use more complicated models when motivated</h4>
+            <p class="common-body-text">
+               This is very much in line with the principles of extreme programming. It’s useful to only spend all the time and effort to create a really complicated model if it is necessary. If it turns out to not be necessary (and even lead to worse results as it did in my case with the RNN), then the effort was wasted. 
+            </p>
+            <p class="common-body-text">
+               If I had started with a dense neural network, seen that it performed not great, moved onto the CNN, seen that it performed better, and the gone to the RNN, I would’ve realized early on that investing more time into the RNN wouldn’t be worth it.
+            </p>
+            <p class="common-body-text">
+               It’s even likely that simpler models, like KNN, latent Dirichlet allocation, SVM, or other “classical” machine learning models, that used simple features like vocabulary counts would have performed better than all of the models I used in this exploration.
+            </p>
+            <h4>What Works In Practice Trumps Theory</h4>
+            <p class="common-body-text">
+               This lesson is almost in the same vein as the previous. Simply removing stopwords got a larger increase in the F1 score than implementing the attention mechanism. 
+            </p>
+            <p class="common-body-text">
+               I fell into the trap of thinking that my RNN could simply learn that stopwords are meaningless, that my attention mechanism would be able to give stopwords a weight or zero, and that my RNN would be able to do whatever a CNN or dense neural network would be able to do by “remembering” everything in the sentence if I gave it a big enough hidden size. Maybe the thought about attention not being paid to stopwords is true. However, none of it worked in practice. 
+            </p>
+            <p class="common-body-text">
+               If the CNN and dense neural network performs better, then who cares? They also have the benefit of being simpler to implement and debug. 
+            </p>
+            <p class="common-body-text">
+               More importantly, if I waste all my time working on and debugging my RNN when there are simpler and more accurate models, then I care that my time was wasted. It was certainly worth it in the sense that there are some lessons that I just have to learn the hard way. The lessons will definitely stick then. 
+            </p>
+            <p class="common-body-text">
+               This is somewhat similar to a lesson that I’ve learned in the software industry from one of my managers:
+            <blockquote> 
+               “If you don’t code it, it’s not real.”
+            </blockquote>
+            </p>
+            <p class="common-body-text">
+               If it works in theory but not in practice, then it’s not useful. 
+            </p>
+            <h4>Back to basics. Basics are the backbone.</h4>
+            <p class="common-body-text">
+               This may be a simple repeat of the above lessons, but it might be worth phrasing in a different context. Simply learning deep-learning but not “classical” machine learning is insufficient. 
+            </p>
+            <p class="common-body-text">
+               When I read the advice to <i>“<a href="https://www.reddit.com/r/MachineLearning/comments/5z8110/d_a_super_harsh_guide_to_machine_learning/">Now forget all of that [machine learning] and read the deep learning book.</a>”</i>, I thought it would be foolish to learn all these older machine learning methods if I’m not going to use them or if they’re not nearly as performant as the latest neural network models. 
+            </p>
+            <p class="common-body-text">
+               This was foolish for a few reasons that many have already shared elsewhere online. 
+            </p>
+            <p class="common-body-text">
+               “Classical” machine learning methods tend to be more interpretable (and therefore easier to debug and learn from, which is especially important for someone new to the field who is learning).
+            </p>
+            <p class="common-body-text">
+               Many techniques taught in earlier machine learning courses tend to apply to deep-learning as well. They aren’t mentioned often in deep learning tutorials since they’re often assumed to be known. Some examples include random oversampling and evaluation metrics. In this regard, I initially fell into the trap of thinking that my 99.999% accuracy score I initially got with my LSTM+Attention was due to the fact that my model was so great. It was because my model was great at being an uninformative classifier. If I had taken the time to learn all of these “classical” machine learning concepts, I’d’ve known what an uninformative classifier was and how that might be a problem. 
+            </p>
+            <h4>Listen to your Kahunas.</h4>
+            <p class="common-body-text">
+               This is similar to the previous lessons in that there are many places to learn useful things. One is from “classical” machine learning methods or other foundations. Another is from people who’ve been working the field for a long time or are influential in the field. 
+            </p>
+            <p class="common-body-text">
+               There are many lessons I could’ve learned from Andrej Karpathy if I deeply ingested his advice rather than shallowly glanced at it. 
+            </p>
+            <p class="common-body-text">
+               He often advises to look at the data and become one with it. The neural network abstraction is <a href="https://www.joelonsoftware.com/2002/11/11/the-law-of-leaky-abstractions/">leaky</a>. It's not advisable to simply dump a neural network on top of arbitrary data (e.g. like I tried to dump an RNN on top of this text dataset) and expect things to magically work. It is vital to look at the data, learn what can be learned from it (this is the biggest part), and then see if the neural network model learn the same. 
+            </p>
+            <p class="common-body-text">
+               I wasted a lot of time tuning my RNN before I even glanced at the data. Had I looked at the data, I would’ve realized how few examples some topics had. Some topics had 1 example. Some had 3. Many topics didn’t have enough to have at least 1 example show up in each of the training/validation/testing splits. If I had realized this early on, I would’ve had a better idea of where to focus my efforts instead of spinning my wheels trying to increase an extremely low F1 sore caused by insufficient data. 
+            </p>
+            <p class="common-body-text">
+               Looking at the data also would’ve helped me eliminate tons of unknown words. There were many numbers in the data. Knowledge of “classical” NLP methods would’ve helped me know to address this early on, but I didn’t bother to learn those because I figured attention and the RNN’s memory would have addressed this. Though the elimination of OOV words didn’t increase performance, the excessive OOV words did cause the vocabulary word limit hyperparameter to have less meaning since the choice didn’t accurately reflect how many meaningful words were being learned by the embedding layer. 
+            </p>
+            <p class="common-body-text">
+               A similar problem occurred with <code>“        \n”</code> being a different token than <code>“\n”</code> Both of these were very common in the data and pushed out a lot of potentially meaningful words from being learned by the embedding layer. Looking at not only the raw data, but the pre-processed and tokenized data as well would’ve saved me some pain. 
+            </p>
+            <h3>Software Engineering Lessons</h3>
+            <h4>Know The Law of Leaky Abstractions / The Hidden Benefits of a Strong C/C++ Background</h4>
+            <p class="common-body-text">
+               The Law of Leaky Abstractions showed up not only in debugging the neural networks to reveal <a href="https://medium.com/@karpathy/yes-you-should-understand-backprop-e2f06eab496b">how important it was to know how backpropagation worked</a> but also in how I had to deal with CUDA memory leaks in PyTorch. Python is a high-level language that intends to abstract away the potentially painful memory management and debugging issues that come with C/C++ with garbage collection. PyTorch similarly abstracts away dealing with memory management on the GPU. However, CUDA memory management issues still pop up. The memory management issues I had were solvable, but they would not have been had I not had a strong theoretical understanding of the underlying principles behind garbage collection and memory management. In dealing with these problems, I actually became quite skilled at debugging memory management issues by inspecting Python’s garbage collector to find out which unused tensors were being retained. 
+            </p>
+            <p class="common-body-text">
+               It would be nice if I didn’t have to deal with these issues, 
+            </p>
+            <h4>Study Data Like A Data Scientist; Write Code Like A Software Engineer</h4>
+            <p class="common-body-text">
+               Data science tutorials often involve giant scripts of data processing and excessive and unnecessary use of global values. 
+            </p>
+            <p class="common-body-text">
+               This form is great for conveying ideas concisely with few lines of code and avoiding the distracting and unnecessary visual overhead of class definitions and abstractions and all that, but when it comes to functionality and practicality, abstractions come in handy when trying out new features. 
+            </p>
+            <p class="common-body-text">
+               Principled software development and abstraction (in particular, the use of abstract classes) saved me tons of time when trying different models. Once I had written my training loop, data loader, check pointing functionality, etc., I never had to deal with it again. I could simply write a new nn.Module and have a new text classifier. If I had written the training loop like all the notebooks that I see on Kaggle, I’d have to have changed things all over the place in different places along the giant script. With my abstract class definition, I only had to implement one or two methods for each model I wanted to use. 
+            </p>
+            <h4>Effective Time Management</h4>
+            <p class="common-body-text">
+               Most people never learn how to effectively complete side-projects. The largest contributing factors are insufficient effort and insufficient time availability. The time availability problem is made worse for deep-learning and machine learning projects by the fact that training and hyperparameter tuning take a long time. This can cause a huge problem for many people given the way that many people work on their side projects (in contiguous blocks allocated on weekends). Deep-learning side-project productivity can be increased by intelligently scheduling the hyperparameter tuning and training. Schedule those to happen overnight and (not or) while at work. This will allow us to get results more frequently and more often. It additionally helps to put some minor amounts of effort in the morning before work to review the overnight results. This allows the testing if new ideas throughout the day while we’re busy at work. This will also increase the frequency that we work on our side project, which is beneficial because it increases the total time we look at our problem with fresh eyes. 
+            </p>
+            <h4>Learn Python Libraries</h4>
+            <p class="common-body-text">
+               It’s extremely hard to know what someone means when they say that they’re a Python developer since someone can start writing and developing Python projects after at most an hour of tutorials. A strong Python developer can be noted by how well the developer can use Python’s most useful feature, the excessive number of both native and community-driven libraries. There are many useful utilities that can be found in Python’s native libraries that made writing a lot of code easier and faster since they let me write my code in a very concise way without having to write several of my own utilities. The libraries that proved extremely useful in this project (and that I believe everyone who boasts the title “Python developer” should know before making such claims) are gc, inspect, traceback,  contextlib, functools, itertools, multiprocessing, collections and pdb. The multiprocessing library was extremely useful for getting quick and easy speed ups in the data pre-processing pipeline to increase productivity. Other useful but non-vital libraries that were useful were tqdm, bs4, and colorama.
+            </p>
+            <h3>Last Words</h3>
+            <p class="common-body-text">
+               There’s a lot of wisdom to be gained by heeding the advice of others. Andrej Karpathy and Joel Spolsky are two particularly wise wisemen. 
+            </p>
+            <p class="common-body-text">
+               There are also many lessons that I should’ve learned from them that I won’t’ve known I should’ve learned until I do things the hard way and go down the path of suffering. 
+            </p>
+            <p class="common-body-text">
+               Luckily for my learning, there are many options that I didn’t explore here and much more work to be done. It’s not clear how to determine the effectiveness of these options without simply trying them. A meta-lesson learned would be that it would be nice to learn how to estimate how promising certain routes are. This comes with practice and more projects. Look forward to more projects to come.
+            </p>
+	    </br>
+	    </br>
+	    </br>
          </div>
       </main>
       <footer class="globalFooter withCards">
          <section class="globalFooterCards" style="position: relative">
-            <div style="opacity:0.1;"><div id="stripes" style="background: blue;-webkit-transform: skewY(0deg);transform: skewY(0deg);"></div></div>
+            <div style="opacity:0.1;">
+               <div id="stripes" style="background: blue;-webkit-transform: skewY(0deg);transform: skewY(0deg);"></div>
+            </div>
             <div class="container-xl">
                <a class="globalFooterCard" href="https://github.com/paul-tqh-nguyen" style="text-decoration: none;">
                   <img src="./front_end/github.svg" height="100" width="100"  style="padding-left: 60px;"/>
