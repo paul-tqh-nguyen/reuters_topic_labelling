@@ -38,6 +38,7 @@ pre code {
 }
 
 .common-body-text, #introduction li {
+    max-width: 80vw;
     margin-left: 10%;
     margin-right: 10%;
     margin-bottom: 40px;

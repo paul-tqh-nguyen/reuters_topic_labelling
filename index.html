@@ -55,7 +55,7 @@
                        <td style="text-align: left">
 			 <center>
                           <pre style="scroll-direction: horizontal;">
-			    <code style ="width: 30vw; overflow-x: scroll; color: #eee; background-color: rgb(48, 10, 36, 1.0); text-align: left; padding-left: 5%; padding-right: 5%; padding-top: 0%; padding-bottom: 0%;">
+			    <code style ="width: 30vw; max-width: 30vw; overflow-x: scroll; color: #eee; background-color: rgb(48, 10, 36, 1.0); text-align: left; padding-left: 5%; padding-right: 5%; padding-top: 0%; padding-bottom: 0%;">
 The Panamanian bulk carrier Juvena is
 still aground outside Tartous, Syria, despite discharging 6,400
 tons of its 39,000-ton cargo of wheat, and water has entered
@@ -251,7 +251,7 @@ west german wholesale turnover provisionally total NUMBER billion mark february,
                   <li>Extract all of the <code>&lt;REUTERS&gt;</code> elements from the 22 <code>.sgm</code> files.</li>
                   <li>
                      From each <code>&lt;REUTERS&gt;</code> article, extract:
-                     <ul style="padding-top: 20px">
+                     <ul style="padding-top: 20px;">
                         <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the article date via <code>&lt;DATE&gt;</code>.</li>
                         <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of a topics (a string with comma separated values, e.g. <code>"crude, ship, oil"</code>) via <code>&lt;TOPICS&gt;</code>.</li>
                         <li style="margin-left: -10vw; font-size: 20px; margin-bottom: 5px;">the list of places mentioned in the article via <code>&lt;PLACES&gt;</code>.</li>
@@ -575,7 +575,7 @@ platform about 120 miles east of Bahrain.
 			</code>
 		      </pre>
                         </td>
-			<td style="overflow: auto; text-align: center;font-size:10vw; color: darkviolet;">&#8649;</td>
+			<td style="overflow: auto; text-align: center; font-size:10vw; color: darkviolet;">&#8649;</td>
                         <td>
                            <pre>
 			<code style="overflow: auto;">
@@ -960,7 +960,7 @@ japanese crusher buy NUMBER <strong style="color: purple; font-size: 1.5em;">UNK
                For future work, another possible method worth exploring would be replacing words with synonyms (possibly restricting the synonym choices to only those present in the training set rather than all possible synonyms in the English language). 
             </p>
             <h3>F1 Threshold Optimization</h3>
-               <center id="preprocessing-interface-table" style="padding-top: 30px; padding-bottom: 30px;">
+               <center id="preprocessing-interface-table" style="padding-top: 30px; padding-bottom: 30px; overflow-y: auto;">
                   <table style="margin-left: 0; ">
                      <tr>
                        <td style="text-align: center">&nbsp;</td>
@@ -974,7 +974,7 @@ japanese crusher buy NUMBER <strong style="color: purple; font-size: 1.5em;">UNK
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: center"><code style="font-size: 15px">Rounding</br>Threshold</code></td>
+                       <td style="text-align: center"><code style="font-size: min(max(1.5vw, 15px), 20px);"><div style="color: #F59B00;">Rounding</br>Threshold</div></code></td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
@@ -990,49 +990,49 @@ japanese crusher buy NUMBER <strong style="color: purple; font-size: 1.5em;">UNK
 		  </table>
                   <table style="margin-left: 0; background-color: #eee; border: 1px solid #999; ">
                     <tr>
-                       <td style="text-align: left"><code style="font-size: 20px">0.0</code></td>
+                       <td style="text-align: left"><code style="font-size: min(max(1.5vw, 15px), 20px)">0.0</code></td>
                        <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: center"><code style="font-size: 20px">N</td>
-                       <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: center"><code style="font-size: 20px; color: #eee">_____</code><code style="font-size: 20px; color: darkviolet">|</code><code style="font-size: 20px; color: #eee">_____</code></td>
-                       <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: center"><code style="font-size: 20px">0.5</code></td>
-                       <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: center"><code style="font-size: 20px">P</td>
+                       <td style="text-align: center"><code style="font-size: min(max(1.5vw, 15px), 20px)"><div style="color: #b21F00;">N</div></td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center"><code style="font-size: min(max(1.5vw, 15px), 20px); color: #eee">_____</code><code style="font-size: min(max(1.5vw, 15px), 20px); color: darkviolet">&#9613;</code><code style="font-size: min(max(1.5vw, 15px), 20px); color: #eee">_____</code></td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: right"><code style="font-size: 20px">1.0</code></td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center"><code style="font-size: min(max(1.5vw, 15px), 20px)"><div style="color: #F59B00;">0.5</div></code></td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center"><code style="font-size: min(max(1.5vw, 15px), 20px)"><div style="color: #0038A1;">P</div></td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: center">&nbsp;</td>
+                       <td style="text-align: right"><code style="font-size: min(max(1.5vw, 15px), 20px)">1.0</code></td>
                      </tr>
 		  </table>
                   <table style="margin-left: 0; ">
                      <tr>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: center"><code style="font-size: 15px">Negative Prediction Mean</code></td>
+                       <td style="text-align: center"><code style="font-size: min(max(1.5vw, 15px), 20px)"><div style="color: #b21F00;">Negative Prediction Mean</div></code></td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: center"><code style="font-size: 20px; color: darkviolet">Optimized Threshold</code></td>
+                       <td style="text-align: center"><code style="font-size: min(max(1.5vw, 15px), 20px); color: darkviolet">Optimized Threshold</code></td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
-                       <td style="text-align: center"><code style="font-size: 15px">Positive Prediction Mean</code></td>
+                       <td style="text-align: center"><code style="font-size: min(max(1.5vw, 15px), 20px)"><div style="color: #0038A1;">Positive Prediction Mean</div></code></td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
                        <td style="text-align: center">&nbsp;</td>
