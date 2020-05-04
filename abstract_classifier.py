@@ -26,7 +26,7 @@ from functools import reduce
 from typing import List, Tuple, Set, Callable, Iterable
 
 import preprocess_data
-from misc_utilites import eager_map, eager_filter, timer, tqdm_with_message
+from misc_utilities import eager_map, eager_filter, timer, tqdm_with_message
 
 import torch
 import torch.nn as nn

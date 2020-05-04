@@ -20,7 +20,7 @@ import argparse
 import random
 import os
 import itertools
-from misc_utilites import tqdm_with_message, safe_cuda_memory
+from misc_utilities import tqdm_with_message, safe_cuda_memory
 
 #################
 # Functionality #

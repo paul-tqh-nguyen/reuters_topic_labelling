@@ -26,7 +26,7 @@ import nltk
 import pandas as pd
 from typing import Iterable, Tuple
 from nltk.corpus.reader.wordnet import ADJ, ADJ_SAT, ADV, NOUN, VERB
-from misc_utilites import eager_map, at_most_one, parallel_map, timer
+from misc_utilities import eager_map, at_most_one, parallel_map, timer
 
 ###########
 # Globals #
