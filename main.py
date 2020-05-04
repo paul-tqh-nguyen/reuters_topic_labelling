@@ -216,7 +216,7 @@ def hyperparameter_search_rnn() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(formatter_class = lambda prog: argparse.HelpFormatter(prog, max_help_position = 40))
     parser.add_argument('-preprocess-data', action='store_true', help='Preprocess the raw SGML files into a CSV.')
-    parser.add_argument('-train-model', action='store_true', help='Trains & evaluates our model on our dataset. Saves model to ./best-model.pt.')
+    parser.add_argument('-train-model', action='store_true', help='Trains & evaluates our model on our dataset. Saves model to ./default_output/best-model.pt.')
     parser.add_argument('-hyperparameter-search', action='store_true', help='Exhaustively performs -train-model over the hyperparameter space. Details of the best performance are tracked in global_best_model_score.json.')
     parser.add_argument('-hyperparameter-search-rnn', action='store_true', help='Perform the hyperparameter search on our RNN model.')
     parser.add_argument('-hyperparameter-search-conv', action='store_true', help='Perform the hyperparameter search on our CNN model.')
