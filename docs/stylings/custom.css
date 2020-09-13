@@ -1,3 +1,8 @@
+
+/***********/
+/* General */
+/***********/
+
 @import url('https://fonts.googleapis.com/css?family=Karla');
 
 body {
@@ -35,6 +40,10 @@ a:hover {
     border: 0.1em solid #788082;
 }
 
+/******************/
+/* Navigation Bar */
+/******************/
+
 #navigator {
     background: linear-gradient(130deg, #2c485e 0%, #182A39 25%,  #1a3347 50%, #182A39 75%,  #2c485e 100%);
     box-shadow: 2px 2px 5px #182A39
@@ -57,6 +66,10 @@ nav #navbarSupportedContent a.nav-link.js-scroll-trigger:hover {
     color: #fff;
 }
 
+/***********************************/
+/* Architecture Performance Charts */
+/***********************************/
+
 #architecture-performance th, #architecture-performance td {
     border: 1px solid #ddd;
     border-collapse: collapse;
@@ -66,6 +79,10 @@ nav #navbarSupportedContent a.nav-link.js-scroll-trigger:hover {
 #architecture-performance table {
     margin: 40px 30vw 40px 30vw;
 }
+
+/***********************/
+/* Contact Information */
+/***********************/
 
 #contact {
     background: linear-gradient(130deg, #2c485e 0%, #182A39 25%,  #1a3347 50%, #182A39 75%,  #2c485e 100%);
@@ -93,4 +110,41 @@ nav #navbarSupportedContent a.nav-link.js-scroll-trigger:hover {
     transition: all 0.25s;
     margin: 5px 5px 5px 5px;
     padding: 5px 10px 5px 10px;
+}
+
+/***************************/
+/* Architecture Depictions */
+/***************************/
+
+#architecture-summary div.svg-container {
+    text-align: center;
+    padding: 10px;
+}
+
+#architecture-summary svg {
+    background: rgba(219, 219, 219, 0.5);
+    border: 1.5px solid #788082;
+    border-radius: 4px;
+}
+
+#arrowhead {
+}
+
+.arrow-line {
+    stroke: black;
+    stroke-width: 2px;
+    stroke-opacity: 1.0;
+}
+
+.text-with-bbox-group {
+}
+
+.text-with-bbox-group-text {
+    fill: red;
+}
+
+.text-with-bbox-group-bounding-box {
+    stroke-width: 1.5;
+    stroke: #000;
+    fill: #fff;
 }
