@@ -24,6 +24,8 @@
     
     const isUndefined = value => value === void(0);
 
+    const shuffle = (array) => array.sort(() => Math.random() - 0.5);
+
     const zip = rows => rows[0].map((_,c) => rows.map(row => row[c]));
     
     const createNewElement = (childTag, {classes, attributes, innerHTML}={}) => {
@@ -211,7 +213,7 @@
         /* Blocks */
 
         const words = ['"The"', '"oil"', '"prices"', '&hellip;', '"significantly."'];
-        const outputClassCount = 4;
+        const outputClassCount = 4+Math.floor(Math.random()*3);
         
         // Words
         const wordGroups = words.map((word, i) => {
@@ -261,7 +263,7 @@
         const attentionSumGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', attentionSumCenterX, 600, '+');
         attentionSumGroup.classed('attention-sum-group', true);
         
-        // Fully Connected Layer
+4        // Fully Connected Layer
         const fullyConnectedCenterX = svgWidth/2;
         const fullyConnectedGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', fullyConnectedCenterX, 700, 'Fully Connected Layer');
         fullyConnectedGroup.classed('fully-connected-group', true);
@@ -342,9 +344,139 @@
     renderRNNArchitecture();
     window.addEventListener('resize', renderRNNArchitecture);
 
-    { // CNN Depiction
+    const renderCNNArchitecture = () => {
+
+        /* Init */
+        
+        const svg = d3.select('#cnn-depiction');
+        svg.selectAll('*').remove();
+        svg
+	    .attr('width', `80vw`)
+	    .attr('height', `${1000}px`);
+        defineArrowHead(svg);
+        const svgWidth = parseFloat(svg.style('width'));
+
+        /* Blocks */
+
+        const words = ['"Grain"', '"shipments"', '"and"', '&hellip;', '"possible."'];
+        const convolutionLayerCount = words.length-1+Math.floor(Math.random()*3);
+        const convolutionSizeVariableNames = 'XYZWPQRSTUV';
+        const convolutionColors = shuffle([
+            '#ffc4c4',
+            '#deffc4',
+            '#c4ffdb',
+            '#c4fffe',
+            '#c4e0ff',
+            '#cbc4ff',
+            '#ecc4ff',
+            '#ffc4e8',
+        ]);
+        const outputClassCount = 4+Math.floor(Math.random()*3);
+        
+        // Words
+        const wordGroups = words.map((word, i) => {
+            const textCenterX = xCenterPositionForIndex(svg, i, words.length);
+            const wordGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', textCenterX, 100, word);
+            wordGroup.classed('word-group', true);
+            return wordGroup;
+        });
+
+        // Embedding Layer
+        const embeddingGroups = wordGroups.map(wordGroup => {
+            const centerX = getD3HandleTopXY(wordGroup)[0];
+            const embeddingGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 200, 'Embedding Layer');
+            embeddingGroup.classed('embedding-group', true);
+            return embeddingGroup;
+        });
+
+        // Convolution Layers
+        const convolutionGroups = [];
+        for (let i=0; i<convolutionLayerCount; i++) {
+            const centerX = xCenterPositionForIndex(svg, i, convolutionLayerCount);
+            const convolutionGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 400, `Size-${convolutionSizeVariableNames[i]} Conv`);
+            convolutionGroup.classed('convolution-group', true);
+            convolutionGroup
+                .select('.text-with-bbox-group-bounding-box')
+                .style('fill', convolutionColors[i]);
+            convolutionGroups.push(convolutionGroup);
+        };
+
+        // Pooling Layers
+        const poolingGroups = convolutionGroups.map(convolutionGroup => {
+            const centerX = getD3HandleTopXY(convolutionGroup)[0];
+            const poolingGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 500, 'Pool');
+            poolingGroup.classed('pooling-group', true);
+            return poolingGroup;
+        });
+        
+        // Concatenation Layer
+        const concatenationCenterX = svgWidth/2;
+        const concatenationGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', concatenationCenterX, 600, 'Concatenation');
+        concatenationGroup.classed('concatenation-group', true);
+        
+        // Prediction Layer
+        const predictionCenterX = svgWidth/2;
+        const predictionGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', predictionCenterX, 700, 'Prediction Layer');
+        predictionGroup.classed('prediction-group', true);
+        
+        // Sigmoid Layer
+        const sigmoidGroups = [];
+        for(let i=0; i<outputClassCount; i++) {
+            const centerX = xCenterPositionForIndex(svg, i, outputClassCount);
+            const sigmoidGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 800, (i === outputClassCount-2) ? '&hellip;' : 'Sigmoid');
+            sigmoidGroup.classed('sigmoid-group', true);
+            sigmoidGroups.push(sigmoidGroup);
+        };
+        
+        // Output Layer
+        const outputGroups = sigmoidGroups.map((sigmoidGroup, i) => {
+            const centerX = getD3HandleTopXY(sigmoidGroup)[0];
+            const outputGroupLabelText = i === outputClassCount-1 ? `Label n Score: ${Math.random().toFixed(4)}` : (i === outputClassCount-2) ? '&hellip;' : `Label ${i} Score: ${Math.random().toFixed(4)}`;
+            const outputGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 900, outputGroupLabelText);
+            outputGroup.classed('output-group', true);
+            return outputGroup;
+        });
+
+        /* Arrows */
+
+        // Words to Embedding Layer
+        zip([wordGroups, embeddingGroups]).forEach(([wordGroup, embeddingGroup]) => {
+            drawArrow(svg, getD3HandleBottomXY(wordGroup), getD3HandleTopXY(embeddingGroup));
+        });
+        
+        // Embedding Layer to Convolution Layers
+        embeddingGroups.forEach(embeddingGroup => {
+            convolutionGroups.forEach(convolutionGroup => {
+                drawArrow(svg, getD3HandleBottomXY(embeddingGroup), getD3HandleTopXY(convolutionGroup));
+            });
+        });
+
+        // Convolution Layers to Pooling Layer
+        zip([convolutionGroups, poolingGroups]).forEach(([convolutionGroup, poolingGroup]) => {
+            drawArrow(svg, getD3HandleBottomXY(convolutionGroup), getD3HandleTopXY(poolingGroup));
+        });
+        
+        // Pooling Layer to Concatenation Layer
+        poolingGroups.forEach(poolingGroup => {
+            drawArrow(svg, getD3HandleBottomXY(poolingGroup), getD3HandleTopXY(concatenationGroup));
+        });
+
+        // Concatenation Layer to Prediction Layer
+        drawArrow(svg, getD3HandleBottomXY(concatenationGroup), getD3HandleTopXY(predictionGroup));
+        
+        // Prediction Layer to Sigmoid Layer
+        sigmoidGroups.forEach((sigmoidGroup) => {
+            drawArrow(svg, getD3HandleBottomXY(predictionGroup), getD3HandleTopXY(sigmoidGroup));
+        });
+
+        // Sigmoid Layer to Output Layer
+        zip([sigmoidGroups, outputGroups]).forEach(([sigmoidGroup, outputGroup]) => {
+            drawArrow(svg, getD3HandleBottomXY(sigmoidGroup), getD3HandleTopXY(outputGroup));
+        });
         
     };
+    renderCNNArchitecture();
+    window.addEventListener('resize', renderCNNArchitecture);
 
     { // DNN Depiction
         

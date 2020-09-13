@@ -19,6 +19,11 @@ h3 {
     margin-bottom: 50px;
 }
 
+h4 {
+    text-align: center;
+    margin-top: 50px;
+}
+
 p {
     padding: 0px 50px 0px 50px;
 }
@@ -183,7 +188,8 @@ nav #navbarSupportedContent a.nav-link.js-scroll-trigger:hover {
     fill: #e4c4ff;
 }
 
-.fully-connected-group .text-with-bbox-group-bounding-box {
+.fully-connected-group .text-with-bbox-group-bounding-box,
+.prediction-group .text-with-bbox-group-bounding-box {
     fill: #c4fdff;
 }
 
@@ -201,3 +207,12 @@ nav #navbarSupportedContent a.nav-link.js-scroll-trigger:hover {
     fill: #555;
 }
 
+/* CNN Architecture Depiction */
+
+.pooling-group .text-with-bbox-group-bounding-box {
+    fill: #d8c4ff;
+}
+
+.concatenation-group .text-with-bbox-group-bounding-box {
+    fill: #ffc4c4;
+}
