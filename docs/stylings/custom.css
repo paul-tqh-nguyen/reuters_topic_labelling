@@ -140,11 +140,63 @@ nav #navbarSupportedContent a.nav-link.js-scroll-trigger:hover {
 }
 
 .text-with-bbox-group-text {
-    fill: red;
+    fill: black;
 }
 
 .text-with-bbox-group-bounding-box {
+    rx: 10;
     stroke-width: 1.5;
     stroke: #000;
     fill: #fff;
 }
+
+/* RNN Architecture Depiction */
+
+.word-group .text-with-bbox-group-bounding-box {
+    rx: 0;
+    stroke-width: 1px;
+}
+
+.word-group .text-with-bbox-group-text {
+    fill: #555;
+    font-style: italic;
+}
+
+.embedding-group .text-with-bbox-group-bounding-box {
+    fill: #fff8c4;
+}
+
+.lstm-group .text-with-bbox-group-bounding-box {
+    fill: #c4dbff;
+}
+
+.attention-group .text-with-bbox-group-bounding-box {
+    fill: #c4ffd0;
+}
+
+.attention-softmax-group .text-with-bbox-group-bounding-box {
+    fill: #ffc4c4;
+}
+
+.attention-sum-group .text-with-bbox-group-bounding-box {
+    fill: #e4c4ff;
+}
+
+.fully-connected-group .text-with-bbox-group-bounding-box {
+    fill: #c4fdff;
+}
+
+.sigmoid-group .text-with-bbox-group-bounding-box {
+    fill: #ffdec4;
+}
+
+.output-group .text-with-bbox-group-bounding-box {
+    rx: 0;
+    stroke-width: 1px;
+    fill: #fff;
+}
+
+.output-group .text-with-bbox-group-text {
+    fill: #555;
+}
+

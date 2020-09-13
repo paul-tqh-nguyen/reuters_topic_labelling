@@ -65,7 +65,7 @@
     /***************************/
     
     const innerMargin = 150;
-    const textMargin = 5;
+    const textMargin = 8;
 
     const xCenterPositionForIndex = (encompassingSvg, index, total) => {
         const svgWidth = parseFloat(encompassingSvg.style('width'));
@@ -90,7 +90,10 @@
               .append('rect')
               .classed(boundingBoxClass, true)
               .attr('x', textElement.attr('x') - textMargin)
-              .attr('y', textElement.attr('y') - textElement.node().getBBox().height / 2 - 2 * textMargin)
+              .attr('y', () => {
+                  const textElementBBox = textElement.node().getBBox();
+                  return textElementBBox.y - textMargin;
+              })
               .attr('width', textElement.node().getBBox().width + 2 * textMargin)
               .attr('height', textElement.node().getBBox().height + 2 * textMargin);
         textElement.moveToFront();
@@ -114,11 +117,6 @@
     };
 
     const defineArrowHead = (encompassingSvg) => {
-	    // <defs>
-	    //   <marker id="arrowhead" markerWidth="10" markerHeight="10" refY="3" orient="auto">
-	    // 	<polygon points="0 0, 6 3, 0 6" />
-	    //   </marker>
-	    // </defs>
 	const defs = encompassingSvg.append('defs');
 	const marker = defs.append('marker')
 	      .attr('markerWidth', '10')
@@ -133,10 +131,6 @@
     
     
     const drawArrow = (encompassingSvg, [x1, y1], [x2, y2]) => {
-        console.log(`x1 ${JSON.stringify(x1)}`);
-        console.log(`y1 ${JSON.stringify(y1)}`);
-        console.log(`x2 ${JSON.stringify(x2)}`);
-        console.log(`y2 ${JSON.stringify(y2)}`);
         const line = encompassingSvg
               .append('line')
 	      .attr('marker-end','url(#arrowhead)')
@@ -152,133 +146,142 @@
     /* Visualizations */
     /******************/
     
-    { // RNN Depiction
+    const renderRNNArchitecture = () => {
 
         /* Init */
         
-        const svg = d3.select('#rnn-depiction'); 
+        const svg = d3.select('#rnn-depiction');
+        svg.selectAll('*').remove();
         svg
-	    .attr('width', `${800}px`)
-	    .attr('height', `${1200}px`);
+	    .attr('width', `80vw`)
+	    .attr('height', `${1000}px`);
         defineArrowHead(svg);
         const svgWidth = parseFloat(svg.style('width'));
 
         /* Blocks */
+
+        const words = ['"The"', '"oil"', '"prices"', '&hellip;', '"significantly."'];
+        const outputClassCount = 4;
         
         // Words
-        const words = ['"I"', '"loved"', '"it!"'];
-        const wordDicts = words.reduce((accumulator, word, i) => {
+        const wordGroups = words.map((word, i) => {
             const textCenterX = xCenterPositionForIndex(svg, i, words.length);
             const wordGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', textCenterX, 100, word);
-            accumulator.push({
-                'centerX': textCenterX,
-                'd3Handle': wordGroup,
-            });
-            return accumulator;
-        }, []);
+            wordGroup.classed('word-group', true);
+            return wordGroup;
+        });
 
         // Embedding Layer
-        const embeddingDicts = wordDicts.reduce((accumulator, wordDict) => {
-            const centerX = wordDict.centerX;            
+        const embeddingGroups = wordGroups.map(wordGroup => {
+            const centerX = getD3HandleTopXY(wordGroup)[0];
             const embeddingGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 200, 'Embedding Layer');
-            accumulator.push({
-                'centerX': centerX,
-                'd3Handle': embeddingGroup,
-            });
-            return accumulator;
-        }, []);
+            embeddingGroup.classed('embedding-group', true);
+            return embeddingGroup;
+        });
 
         // LSTM Layer
-        const LSTMDicts = wordDicts.reduce((accumulator, wordDict) => {
-            const centerX = wordDict.centerX;
+        const LSTMGroups = wordGroups.map(wordGroup => {
+            const centerX = getD3HandleTopXY(wordGroup)[0];
             const LSTMGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 300, 'BiLSTM');
-            accumulator.push({
-                'centerX': centerX,
-                'd3Handle': LSTMGroup,
-            });
-            return accumulator;
-        }, []);
+            LSTMGroup.classed('lstm-group', true);
+            return LSTMGroup;
+        });
 
         // Attention Layer
-        const attentionDicts = wordDicts.reduce((accumulator, wordDict) => {
-            const centerX = wordDict.centerX;
-            const attentionGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 400, 'Self-Attention');
-            accumulator.push({
-                'centerX': centerX,
-                'd3Handle': attentionGroup,
-            });
-            return accumulator;
-        }, []);
+        const attentionGroups = wordGroups.map(wordGroup => {
+            const centerX = getD3HandleTopXY(wordGroup)[0];
+            const attentionGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 400, 'Attention');
+            attentionGroup.classed('attention-group', true);
+            return attentionGroup;
+        });
 
         // Attention Softmax Layer
         const attentionSoftmaxCenterX = svgWidth/2;
         const attentionSoftmaxGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', attentionSoftmaxCenterX, 500, 'Softmax');
-        const attentionSoftmaxDict = {
-            'centerX': attentionSoftmaxCenterX,
-            'd3Handle': attentionSoftmaxGroup,
-        };
+        attentionSoftmaxGroup.classed('attention-softmax-group', true);
+        const attentionSoftmaxGroupLeftX = attentionGroups[0].node().getBBox().x;
+        const rightmostAttentionGroupBoundingBox = attentionGroups[words.length-1].node().getBBox();
+        const attentionSoftmaxGroupRightX = rightmostAttentionGroupBoundingBox.x + rightmostAttentionGroupBoundingBox.width;
+        attentionSoftmaxGroup.select('rect')
+            .attr('x', attentionSoftmaxGroupLeftX)
+            .attr('width', attentionSoftmaxGroupRightX - attentionSoftmaxGroupLeftX);
 
         // Attention Sum Layer
         const attentionSumCenterX = svgWidth/2;
         const attentionSumGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', attentionSumCenterX, 600, '+');
-        const attentionSumDict = {
-            'centerX': attentionSumCenterX,
-            'd3Handle': attentionSumGroup,
-        };
+        attentionSumGroup.classed('attention-sum-group', true);
         
         // Fully Connected Layer
         const fullyConnectedCenterX = svgWidth/2;
         const fullyConnectedGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', fullyConnectedCenterX, 700, 'Fully Connected Layer');
-        const fullyConnectedDict = {
-            'centerX': fullyConnectedCenterX,
-            'd3Handle': fullyConnectedGroup,
-        };
-
+        fullyConnectedGroup.classed('fully-connected-group', true);
+        
         // Sigmoid Layer
-        const SigmoidDicts = wordDicts.reduce((accumulator, wordDict) => {
-            const centerX = wordDict.centerX;
-            const SigmoidGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 800, 'Sigmoid');
-            accumulator.push({
-                'centerX': centerX,
-                'd3Handle': SigmoidGroup,
-            });
-            return accumulator;
-        }, []);
+        const sigmoidGroups = [];
+        for(let i=0; i<outputClassCount; i++) {
+            const centerX = xCenterPositionForIndex(svg, i, outputClassCount);
+            const sigmoidGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 800, (i === outputClassCount-2) ? '&hellip;' : 'Sigmoid');
+            sigmoidGroup.classed('sigmoid-group', true);
+            sigmoidGroups.push(sigmoidGroup);
+        };
         
         // Output Layer
-        const outputDicts = wordDicts.reduce((accumulator, wordDict, i) => {
-            const centerX = wordDict.centerX;
-            const LSTMGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 900, `Class ${i}`);
-            accumulator.push({
-                'centerX': centerX,
-                'd3Handle': LSTMGroup,
-            });
-            return accumulator;
-        }, []);
+        const outputGroups = sigmoidGroups.map((sigmoidGroup, i) => {
+            const centerX = getD3HandleTopXY(sigmoidGroup)[0];
+            const outputGroupLabelText = i === outputClassCount-1 ? `Label n Score: ${Math.random().toFixed(4)}` : (i === outputClassCount-2) ? '&hellip;' : `Label ${i} Score: ${Math.random().toFixed(4)}`;
+            const outputGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 900, outputGroupLabelText);
+            outputGroup.classed('output-group', true);
+            return outputGroup;
+        });
 
         /* Arrows */
 
         // Words to Embedding Layer
-        zip([wordDicts, embeddingDicts]).forEach(([wordDict, embeddingDict]) => {
-            drawArrow(svg, getD3HandleBottomXY(wordDict.d3Handle), getD3HandleTopXY(embeddingDict.d3Handle));
+        zip([wordGroups, embeddingGroups]).forEach(([wordGroup, embeddingGroup]) => {
+            drawArrow(svg, getD3HandleBottomXY(wordGroup), getD3HandleTopXY(embeddingGroup));
         });
         
         // Embedding Layer to LSTM Layer
-        zip([embeddingDicts, LSTMDicts]).forEach(([embeddingDict, LSTMDict]) => {
-            drawArrow(svg, getD3HandleBottomXY(embeddingDict.d3Handle), getD3HandleTopXY(LSTMDict.d3Handle));
+        zip([embeddingGroups, LSTMGroups]).forEach(([embeddingGroup, LSTMGroup]) => {
+            drawArrow(svg, getD3HandleBottomXY(embeddingGroup), getD3HandleTopXY(LSTMGroup));
         });
         
         // LSTM Layer to Attention Layer
-        zip([LSTMDicts, attentionDicts]).forEach(([LSTMDict, attentionDict]) => {
-            drawArrow(svg, getD3HandleBottomXY(LSTMDict.d3Handle), getD3HandleTopXY(attentionDict.d3Handle));
+        zip([LSTMGroups, attentionGroups]).forEach(([LSTMGroup, attentionGroup]) => {
+            drawArrow(svg, getD3HandleBottomXY(LSTMGroup), getD3HandleTopXY(attentionGroup));
         });
         
-        // Attention Layer to Softmax
-        attentionDicts.forEach((attentionDict) => {
-            drawArrow(svg, getD3HandleBottomXY(attentionDict.d3Handle), getD3HandleTopXY(attentionSoftmaxGroup));
+        // Attention Layer to Softmax Layer
+        attentionGroups.forEach((attentionGroup) => {
+            const [attentionGroupBottomX, attentionGroupBottomY] = getD3HandleBottomXY(attentionGroup);
+            const attentionSoftmaxGroupTopY = getD3HandleTopXY(attentionSoftmaxGroup)[1];
+            drawArrow(svg, [attentionGroupBottomX, attentionGroupBottomY], [attentionGroupBottomX, attentionSoftmaxGroupTopY]);
+        });
+        
+        // Softmax Layer to Attention Sum Layer
+        // drawArrow(svg, getD3HandleBottomXY(attentionSoftmaxGroup), getD3HandleTopXY(attentionSumGroup));
+        attentionGroups.forEach((attentionGroup) => {
+            const attentionGroupBottomX = getD3HandleBottomXY(attentionGroup)[0];
+            const attentionSoftmaxGroupBottomY = getD3HandleBottomXY(attentionSoftmaxGroup)[1];
+            drawArrow(svg, [attentionGroupBottomX, attentionSoftmaxGroupBottomY], getD3HandleTopXY(attentionSumGroup));
+        });
+
+        // Attention Sum Layer to Fully Connected Layer
+        drawArrow(svg, getD3HandleBottomXY(attentionSumGroup), getD3HandleTopXY(fullyConnectedGroup));
+
+        // Fully Connected Layer to Sigmoid Layer
+        sigmoidGroups.forEach((sigmoidGroup) => {
+            drawArrow(svg, getD3HandleBottomXY(fullyConnectedGroup), getD3HandleTopXY(sigmoidGroup));
+        });
+
+        // Sigmoid Layer to Output Layer
+        zip([sigmoidGroups, outputGroups]).forEach(([sigmoidGroup, outputGroup]) => {
+            drawArrow(svg, getD3HandleBottomXY(sigmoidGroup), getD3HandleTopXY(outputGroup));
         });
         
     };
+    renderRNNArchitecture();
+    window.addEventListener('resize', renderRNNArchitecture);
 
     { // CNN Depiction
         
