@@ -320,7 +320,6 @@
         });
         
         // Softmax Layer to Attention Sum Layer
-        // drawArrow(svg, getD3HandleBottomXY(attentionSoftmaxGroup), getD3HandleTopXY(attentionSumGroup));
         attentionGroups.forEach((attentionGroup) => {
             const attentionGroupBottomX = getD3HandleBottomXY(attentionGroup)[0];
             const attentionSoftmaxGroupBottomY = getD3HandleBottomXY(attentionSoftmaxGroup)[1];
@@ -478,8 +477,130 @@
     renderCNNArchitecture();
     window.addEventListener('resize', renderCNNArchitecture);
 
-    { // DNN Depiction
+    const renderDNNArchitecture = () => {
+
+        /* Init */
         
+        const denseLayerCount = 3+Math.floor(Math.random()*3);
+        const svg = d3.select('#dnn-depiction');
+        svg.selectAll('*').remove();
+        svg
+	    .attr('width', `80vw`)
+	    .attr('height', `${600+denseLayerCount*100}px`);
+        defineArrowHead(svg);
+        const svgWidth = parseFloat(svg.style('width'));
+
+        /* Blocks */
+
+        const words = ['"French"', '"prime"', '&hellip;', '"unsure."'];
+        const outputClassCount = 4+Math.floor(Math.random()*3);
+        
+        // Words
+        const wordGroups = words.map((word, i) => {
+            const textCenterX = xCenterPositionForIndex(svg, i, words.length);
+            const wordGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', textCenterX, 100, word);
+            wordGroup.classed('word-group', true);
+            return wordGroup;
+        });
+
+        // Embedding Layer
+        const embeddingGroups = wordGroups.map(wordGroup => {
+            const centerX = getD3HandleTopXY(wordGroup)[0];
+            const embeddingGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 200, 'Embedding Layer');
+            embeddingGroup.classed('embedding-group', true);
+            return embeddingGroup;
+        });
+        
+        // Dense Layer
+        const denseGroups = [];
+        for(let i=0; i<denseLayerCount; i++) {
+            const denseCenterX = svgWidth/2;
+            const denseGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', denseCenterX, 300+i*100, i===denseLayerCount-2 ? '&hellip;' : 'Dense Layer');
+            denseGroup.classed('dense-group', true);
+            const denseGroupLeftX = embeddingGroups[0].node().getBBox().x;
+            const rightmostAttentionGroupBoundingBox = embeddingGroups[words.length-1].node().getBBox();
+            const denseGroupRightX = rightmostAttentionGroupBoundingBox.x + rightmostAttentionGroupBoundingBox.width;
+            denseGroup.select('rect')
+                .attr('x', denseGroupLeftX)
+                .attr('width', denseGroupRightX - denseGroupLeftX);
+            denseGroups.push(denseGroup);
+        }
+
+        // Fully Connected Layer
+        const fullyConnectedCenterX = svgWidth/2;
+        const fullyConnectedGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', fullyConnectedCenterX, 300+denseLayerCount*100, 'Fully Connected Layer');
+        fullyConnectedGroup.classed('fully-connected-group', true);
+
+        // Sigmoid Layer
+        const sigmoidGroups = [];
+        for(let i=0; i<outputClassCount; i++) {
+            const centerX = xCenterPositionForIndex(svg, i, outputClassCount);
+            const sigmoidGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 400+denseLayerCount*100, (i === outputClassCount-2) ? '&hellip;' : 'Sigmoid');
+            sigmoidGroup.classed('sigmoid-group', true);
+            sigmoidGroups.push(sigmoidGroup);
+        };
+                
+        // Output Layer
+        const outputGroups = sigmoidGroups.map((sigmoidGroup, i) => {
+            const centerX = getD3HandleTopXY(sigmoidGroup)[0];
+            const outputGroupLabelText = i === outputClassCount-1 ? `Label n Score: ${Math.random().toFixed(4)}` : (i === outputClassCount-2) ? '&hellip;' : `Label ${i} Score: ${Math.random().toFixed(4)}`;
+            const outputGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 500+denseLayerCount*100, outputGroupLabelText);
+            outputGroup.classed('output-group', true);
+            return outputGroup;
+        });
+
+        /* Arrows */
+
+        // Words to Embedding Layer
+        zip([wordGroups, embeddingGroups]).forEach(([wordGroup, embeddingGroup]) => {
+            drawArrow(svg, getD3HandleBottomXY(wordGroup), getD3HandleTopXY(embeddingGroup));
+        });
+
+        // Embedding Layer to First Dense Layer
+        const denseGroupTopY = getD3HandleTopXY(denseGroups[0])[1];
+        embeddingGroups.forEach(embeddingGroup0 => {
+            const [embeddingGroup0BottomX, embeddingGroup0BottomY] = getD3HandleBottomXY(embeddingGroup0);
+            embeddingGroups.forEach(embeddingGroup1 => {
+                const embeddingGroup1BottomX = getD3HandleBottomXY(embeddingGroup1)[0];
+                drawArrow(svg, [embeddingGroup0BottomX, embeddingGroup0BottomY], [embeddingGroup1BottomX, denseGroupTopY]);
+            });
+        });
+
+        // Intra Dense Layer Arrows
+        denseGroups.forEach((denseGroup, i) => {
+            if (i < denseGroups.length-1) {
+                const denseGroupY = getD3HandleTopXY(denseGroup)[1];
+                const nextDenseGroup = denseGroups[i+1];
+                const nextDenseGroupY = getD3HandleTopXY(nextDenseGroup)[1];
+                embeddingGroups.forEach(embeddingGroup0 => {
+                    const embeddingGroup0X = getD3HandleBottomXY(embeddingGroup0)[0];
+                    embeddingGroups.forEach(embeddingGroup1 => {
+                        const embeddingGroup1X = getD3HandleBottomXY(embeddingGroup1)[0];
+                        drawArrow(svg, [embeddingGroup0X, denseGroupY], [embeddingGroup1X, nextDenseGroupY]);
+                    });
+                });
+            }
+        });
+
+        // Last Dense Layer to Fully Connected Layer
+        embeddingGroups.forEach(embeddingGroup => {
+            const embeddingGroupX = getD3HandleBottomXY(embeddingGroup)[0];
+            const denseGroupY = getD3HandleBottomXY(denseGroups[denseGroups.length-1])[1];
+            drawArrow(svg, [embeddingGroupX, denseGroupY], getD3HandleTopXY(fullyConnectedGroup));
+        });
+        
+        // Fully Connected Layer to Sigmoid Layer
+        sigmoidGroups.forEach((sigmoidGroup) => {
+            drawArrow(svg, getD3HandleBottomXY(fullyConnectedGroup), getD3HandleTopXY(sigmoidGroup));
+        });
+
+        // Sigmoid Layer to Output Layer
+        zip([sigmoidGroups, outputGroups]).forEach(([sigmoidGroup, outputGroup]) => {
+            drawArrow(svg, getD3HandleBottomXY(sigmoidGroup), getD3HandleTopXY(outputGroup));
+        });
+
     };
+    renderDNNArchitecture();
+    window.addEventListener('resize', renderDNNArchitecture);
     
 };
