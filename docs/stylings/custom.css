@@ -131,6 +131,7 @@ nav #navbarSupportedContent a.nav-link.js-scroll-trigger:hover {
 }
 
 .arrow-line {
+    fill: none;
     stroke: black;
     stroke-width: 2px;
     stroke-opacity: 1.0;

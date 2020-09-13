@@ -66,6 +66,7 @@
     
     const innerMargin = 150;
     const textMargin = 8;
+    const curvedArrowOffset = 30;
 
     const xCenterPositionForIndex = (encompassingSvg, index, total) => {
         const svgWidth = parseFloat(encompassingSvg.style('width'));
@@ -116,12 +117,44 @@
         return [x, y];
     };
 
+    const getD3HandleTopLeftXY = (element) => {
+        /* element is a D3 handle */
+        const boundingBox = element.node().getBBox();
+        const x = boundingBox.x;
+        const y = boundingBox.y;
+        return [x, y];
+    };
+
+    const getD3HandleBottomLeftXY = (element) => {
+        /* element is a D3 handle */
+        const boundingBox = element.node().getBBox();
+        const x = boundingBox.x;
+        const y = boundingBox.y + boundingBox.height;
+        return [x, y];
+    };
+
+    const getD3HandleTopRightXY = (element) => {
+        /* element is a D3 handle */
+        const boundingBox = element.node().getBBox();
+        const x = boundingBox.x + boundingBox.width;
+        const y = boundingBox.y;
+        return [x, y];
+    };
+
+    const getD3HandleBottomRightXY = (element) => {
+        /* element is a D3 handle */
+        const boundingBox = element.node().getBBox();
+        const x = boundingBox.x + boundingBox.width;
+        const y = boundingBox.y + boundingBox.height;
+        return [x, y];
+    };
+
     const defineArrowHead = (encompassingSvg) => {
 	const defs = encompassingSvg.append('defs');
 	const marker = defs.append('marker')
 	      .attr('markerWidth', '10')
 	      .attr('markerHeight', '10')
-	      .attr('refX', '6')
+	      .attr('refX', '5')
 	      .attr('refY', '3')
 	      .attr('orient', 'auto')
 	      .attr('id', 'arrowhead');
@@ -134,11 +167,28 @@
         const line = encompassingSvg
               .append('line')
 	      .attr('marker-end','url(#arrowhead)')
-              .moveToBack() // not strictly necessary
+              .moveToBack()
 	      .attr('x1', x1)
 	      .attr('y1', y1)
 	      .attr('x2', x2)
 	      .attr('y2', y2)
+              .classed('arrow-line', true);
+    };
+    
+    const drawCurvedArrow = (encompassingSvg, [x1, y1], [x2, y2]) => {
+	const midpointX = (x1+x2)/2;
+	const midpointY = (y1+y2)/2;
+	const dx = (x2 - x1);
+	const dy = (y2 - y1);
+	const normalization = Math.sqrt((dx * dx) + (dy * dy));
+	const offSetX = midpointX + curvedArrowOffset*(dy/normalization);
+	const offSetY = midpointY - curvedArrowOffset*(dx/normalization);
+	const path = `M ${x1}, ${y1} S ${offSetX}, ${offSetY} ${x2}, ${y2}`;
+        const line = encompassingSvg
+              .append('path')
+	      .attr('marker-end','url(#arrowhead)')
+              .moveToBack()
+	      .attr('d', path)
               .classed('arrow-line', true);
     };
     
@@ -245,6 +295,15 @@
         zip([embeddingGroups, LSTMGroups]).forEach(([embeddingGroup, LSTMGroup]) => {
             drawArrow(svg, getD3HandleBottomXY(embeddingGroup), getD3HandleTopXY(LSTMGroup));
         });
+
+        // Intra-LSTM Layer Arrows
+        LSTMGroups.forEach((LSTMGroup, i) => {
+            if (i<LSTMGroups.length-1) {
+                const nextLSTMGroup = LSTMGroups[i+1];
+                drawCurvedArrow(svg, getD3HandleTopRightXY(LSTMGroup), getD3HandleTopLeftXY(nextLSTMGroup));
+                drawCurvedArrow(svg, getD3HandleBottomLeftXY(nextLSTMGroup), getD3HandleBottomRightXY(LSTMGroup));
+            }
+	});
         
         // LSTM Layer to Attention Layer
         zip([LSTMGroups, attentionGroups]).forEach(([LSTMGroup, attentionGroup]) => {
