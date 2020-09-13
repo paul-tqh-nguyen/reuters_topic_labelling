@@ -216,3 +216,10 @@ nav #navbarSupportedContent a.nav-link.js-scroll-trigger:hover {
 .concatenation-group .text-with-bbox-group-bounding-box {
     fill: #ffc4c4;
 }
+
+
+/* CNN Architecture Depiction */
+
+.dense-group .text-with-bbox-group-bounding-box {
+    fill: #c4ffd0;
+}
