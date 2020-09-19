@@ -272,7 +272,7 @@
         const sigmoidGroups = [];
         for(let i=0; i<outputClassCount; i++) {
             const centerX = xCenterPositionForIndex(svg, i, outputClassCount);
-            const sigmoidGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 800, (i === outputClassCount-2) ? '&hellip;' : 'Sigmoid');
+            const sigmoidGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 800, 'Sigmoid');
             sigmoidGroup.classed('sigmoid-group', true);
             sigmoidGroups.push(sigmoidGroup);
         };
@@ -422,7 +422,7 @@
         const sigmoidGroups = [];
         for(let i=0; i<outputClassCount; i++) {
             const centerX = xCenterPositionForIndex(svg, i, outputClassCount);
-            const sigmoidGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 800, (i === outputClassCount-2) ? '&hellip;' : 'Sigmoid');
+            const sigmoidGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 800, 'Sigmoid');
             sigmoidGroup.classed('sigmoid-group', true);
             sigmoidGroups.push(sigmoidGroup);
         };
@@ -535,7 +535,7 @@
         const sigmoidGroups = [];
         for(let i=0; i<outputClassCount; i++) {
             const centerX = xCenterPositionForIndex(svg, i, outputClassCount);
-            const sigmoidGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 400+denseLayerCount*100, (i === outputClassCount-2) ? '&hellip;' : 'Sigmoid');
+            const sigmoidGroup = generateTextWithBoundingBox(svg, 'text-with-bbox-group', 'text-with-bbox-group-text', 'text-with-bbox-group-bounding-box', centerX, 400+denseLayerCount*100, 'Sigmoid');
             sigmoidGroup.classed('sigmoid-group', true);
             sigmoidGroups.push(sigmoidGroup);
         };

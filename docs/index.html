@@ -81,14 +81,25 @@
 	<div class="svg-container">
 	  <svg id="rnn-depiction"></svg>
 	</div>
+	<p>The attention mechanism we employed was <a target="_blank" href="https://arxiv.org/abs/1703.03130">Zhouhan Lin's self-attention</a>. We used a ReLU activation the attention mechanism rather than what was presented in the original paper.</p>
+	<p>We also employed dropout after the embedding and BiLSTM layers. We excluded this from the depiction to avoid cluttering.</p>
 	<h4>CNN Architecture</h4>
 	<div class="svg-container">
 	  <svg id="cnn-depiction"></svg>
 	</div>
+	<p>We used the ReLU activation function after the convolution.</p>
+	<p>We also employed dropout after the embedding and convolution layers. We excluded this from the depiction to avoid cluttering.</p>
+	<p>Our hyperparameter search explored average and max pooling for our pooling methods. Max pooling outperformed average pooling significantly.</p>
 	<h4>Dense Neural Network Architecture</h4>
 	<div class="svg-container">
 	  <svg id="dnn-depiction"></svg>
 	</div>
+	<p>We used the ReLU activation function after every dense layer.</p>
+	<p>We also employed dropout after the embedding and dense layers. We excluded this from the depiction to avoid cluttering.</p>
+	<h4>Misc. Details</h4>
+	<p>We explored two loss functions, sum of <a href="https://en.wikipedia.org/wiki/Cross_entropy">BCE</a> across all topics and <a href="https://towardsdatascience.com/the-unknown-benefits-of-using-a-soft-f1-loss-in-classification-systems-753902c0105d">Soft-F1</a>. We found that neither outperformed the other in terms of accuracy.</p>
+	<p>We employed grid search for our hyperparameter search method.</p>
+	<p>The chhoice to explore a dense neural network was motivated by the need to have a sensible baseline.</p>
       </section>
       <section class="p-3 p-lg-5 d-flex flex-column" id="architecture-performance">
 	<h3>Architecture Performance</h3>
