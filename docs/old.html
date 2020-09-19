@@ -858,7 +858,7 @@ money-fx <strong style="color: grey;">False</strong>
             <p class="common-body-text">
                I used both functions but found that neither seemed to lead to a better F1 score than the other.
             </p>
-            <h3>Data Imbalance</h3>
+            <h3 id="methods-employed-oversampling">Data Imbalance</h3>
             <p class="common-body-text">
                With <a href="https://en.wikipedia.org/wiki/Binary_classification">binary classification</a> problems, data imbalance can be solved easily through <a href="https://en.wikipedia.org/wiki/Oversampling_and_undersampling_in_data_analysis">oversampling or undersampling</a> as there are only two categories to balance. Sample until the two categories are the same size. For single-label <a href="https://en.wikipedia.org/wiki/Multiclass_classification">multi-class classification</a>, a similar method can be used. 
             </p>
@@ -915,7 +915,7 @@ money-fx <strong style="color: grey;">False</strong>
             <p class="common-body-text">
                I believe that this method might be useful for cases where <a href="https://en.wikipedia.org/wiki/Oversampling_and_undersampling_in_data_analysis">data imbalance</a> causes problems, but it might not be useful for this given dataset due to the small size where the <a href="https://en.wikipedia.org/wiki/Oversampling_and_undersampling_in_data_analysis">data imbalance</a> is not the dominating issue.
             </p>
-            <h3>Data Augmentation</h3>
+            <h3 id="methods-employed-data-augmentation">Data Augmentation</h3>
                <center id="preprocessing-interface-table">
                   <table style="margin-left: 0">
                      <tr>
@@ -959,7 +959,7 @@ japanese crusher buy NUMBER <strong style="color: purple; font-size: 1.5em;">UNK
             <p class="common-body-text">
                For future work, another possible method worth exploring would be replacing words with synonyms (possibly restricting the synonym choices to only those present in the training set rather than all possible synonyms in the English language). 
             </p>
-            <h3>F1 Threshold Optimization</h3>
+            <h3 id="methods-employed-f1-threshold-optimization">F1 Threshold Optimization</h3>
                <center id="preprocessing-interface-table" style="padding-top: 30px; padding-bottom: 30px; overflow-y: auto;">
                   <table style="margin-left: 0; ">
                      <tr>
@@ -1065,7 +1065,7 @@ japanese crusher buy NUMBER <strong style="color: purple; font-size: 1.5em;">UNK
             <p class="common-body-text">
                This small but noticeable improvement might be worth investigating further in the future by appropriately accounting for outliers in the center point calculation using a <a href="https://en.wikipedia.org/wiki/Standard_deviation">standard deviation</a> threshold. Another option worth exploring would be to exclude <a href="https://en.wikipedia.org/wiki/False_positives_and_false_negatives">false positives and false negatives</a>.
             </p>
-            <h3>Stopword Removal</h3>
+            <h3 id="methods-employed-stopword-removal">Stopword Removal</h3>
                <center id="preprocessing-interface-table">
                   <table style="margin-left: 0">
                      <tr>
@@ -1103,7 +1103,7 @@ arvin industries inc said l.k. evans elected president, succeeding james baker r
             <p class="common-body-text">
                I used <a href="https://www.nltk.org/">NLTK</a>'s English <a href="https://en.wikipedia.org/wiki/Stop_words">stopword</a> list for <a href="https://en.wikipedia.org/wiki/Stop_words">stopword</a> removal via <code>nltk.corpus.stopwords.words('english')</code>.
             </p>
-            <h3>Contraction Expansion</h3>
+            <h3 id="methods-employed-contraction-expansion">Contraction Expansion</h3>
                <center id="contraction-table">
                   <table style="margin-left: 0;">
                      <tr>
@@ -1150,7 +1150,7 @@ arvin industries inc said l.k. evans elected president, succeeding james baker r
             <p class="common-body-text">
                I manually implemented the contraction/shorthand expander. The list of contractions and shorthand can be found <a href="https://github.com/paul-tqh-nguyen/reuters_topic_labelling/blob/master/preprocess_data.py#L47">here</a>.
             </p>
-            <h3>Number Tokenization</h3>
+            <h3 id="methods-employed-number-tokenization">Number Tokenization</h3>
                <center id="preprocessing-interface-table">
                   <table style="margin-left: 0">
                      <tr>
@@ -1179,7 +1179,7 @@ general motors corp said it produced <strong style="color: purple; font-size: 1.
             <p class="common-body-text">
                Numbers, e.g. <code>"9"</code>, <code>"3/4"</code>, <code>"1.3"</code>, <code>"1,256,412"</code>, were replaced with a special <code>NUMBER</code> token. While this drastically decreased the <a href="https://en.wikipedia.org/wiki/Statistical_machine_translation#Out_of_vocabulary_(OOV)_words"><code>UNK</code></a> count in the data and the total number of <a href="https://en.wikipedia.org/wiki/Statistical_machine_translation#Out_of_vocabulary_(OOV)_words">unknown words</a> (which is expected), it yielded no noticeable improvement for any of the models. It did help reduce the noise when investigating the impact of <a href="https://en.wikipedia.org/wiki/Statistical_machine_translation#Out_of_vocabulary_(OOV)_words">unknown words</a>.
             </p>
-            <h3>Lemmatization</h3>
+            <h3 id="methods-employed-lemmatization">Lemmatization</h3>
                <center id="preprocessing-interface-table">
                   <table style="margin-left: 0">
                      <tr>

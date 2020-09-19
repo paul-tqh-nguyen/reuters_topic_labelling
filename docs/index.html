@@ -59,6 +59,19 @@
 	<p>The articles in <a target="_blank" href="http://kdd.ics.uci.edu/databases/reuters21578/reuters21578.html">Reuters-21578 Text Categorization Collection</a> have many labels.</p>
 	<p>Some topics have an insufficient number of articles associated with them, e.g. some topics only have 2 articles (not enough to have even 1 in each of the training, validation, and testing splits). </p>
 	<p>We removed all topics with fewer than 200 articles.</p>
+	<p>Here are some data preprocessing techniques that we explored that yielded accuracy improvements:</p>
+	<ul>
+	  <li><a target="_blank" href="old.html#methods-employed-stopword-removal">Stopword Removal</a></li>
+	  <li><a target="_blank" href="old.html#methods-employed-f1-threshold-optimization">F1 Threshold Optimization</a></li>
+	</ul>
+	<p>Here are some data preprocessing techniques that we explored that did not yield any noticeable accuracy improvements:</p>
+	<ul>
+	  <li><a target="_blank" href="old.html#methods-employed-lemmatization">Lemmatization</a></li>
+	  <li><a target="_blank" href="old.html#methods-employed-contraction-expansion">Contraction Expansion</a></li>
+	  <li><a target="_blank" href="old.html#methods-employed-number-tokenization">Number Tokenization</a></li>
+	  <li><a target="_blank" href="old.html#methods-employed-data-augmentation">Data Augmentation via Random Masking</a></li>
+	  <li><a target="_blank" href="old.html#methods-employed-oversampling">Data Oversampling</a></li>
+	</ul>
 	<p>See our <a target="_blank" href="old.html#original-dataset-overview">original post</a> for more detail.</p>
       </section>
       <section class="p-3 p-lg-5 d-flex flex-column" id="architecture-summary" style="background-color: #e6f5ec">
