@@ -90,13 +90,11 @@
         textElement
 	    .attr('x', textCenterX - textElement.node().getBBox().width / 2);
         const boundingBoxElement = parentGroup
-              .append('rect')
+              .append('rect');
+        boundingBoxElement
               .classed(boundingBoxClass, true)
               .attr('x', textElement.attr('x') - textMargin)
-              .attr('y', () => {
-                  const textElementBBox = textElement.node().getBBox();
-                  return textElementBBox.y - textMargin;
-              })
+              .attr('y', () => textElement.node().getBBox().y - textMargin)
               .attr('width', textElement.node().getBBox().width + 2 * textMargin)
               .attr('height', textElement.node().getBBox().height + 2 * textMargin);
         textElement.moveToFront();
@@ -340,7 +338,7 @@
         });
         
     };
-    renderRNNArchitecture();
+    setTimeout(renderRNNArchitecture, 1000); // @todo this is a workaround
     window.addEventListener('resize', renderRNNArchitecture);
 
     const renderCNNArchitecture = () => {
@@ -474,9 +472,9 @@
         });
         
     };
-    renderCNNArchitecture();
+    setTimeout(renderCNNArchitecture, 1000); // @todo this is a workaround
     window.addEventListener('resize', renderCNNArchitecture);
-
+    
     const renderDNNArchitecture = () => {
 
         /* Init */
@@ -600,7 +598,7 @@
         });
 
     };
-    renderDNNArchitecture();
+    setTimeout(renderDNNArchitecture, 1000); // @todo this is a workaround
     window.addEventListener('resize', renderDNNArchitecture);
     
 };
