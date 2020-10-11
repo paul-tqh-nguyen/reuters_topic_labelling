@@ -567,7 +567,7 @@
         // Intra Dense Layer Arrows
         denseGroups.forEach((denseGroup, i) => {
             if (i < denseGroups.length-1) {
-                const denseGroupY = getD3HandleTopXY(denseGroup)[1];
+                const denseGroupY = getD3HandleBottomXY(denseGroup)[1];
                 const nextDenseGroup = denseGroups[i+1];
                 const nextDenseGroupY = getD3HandleTopXY(nextDenseGroup)[1];
                 embeddingGroups.forEach(embeddingGroup0 => {
